@@ -37,7 +37,16 @@ class FleetIdpOAuth
     {
         $configured = config('fleet_idp.redirect_uri');
         if (is_string($configured) && trim($configured) !== '') {
-            return rtrim(trim($configured), '/');
+            $single = trim($configured);
+            if (str_contains($single, ',')) {
+                throw new InvalidRedirectUriConfig(
+                    'FLEET_IDP_REDIRECT_URI must be a single URL, not a comma-separated list. '.
+                    'Register each callback on the Passport client in Fleet Auth only. '.
+                    'Use one URL that matches how you open this app (e.g. http://waypost.test/oauth/fleet-auth/callback), or remove FLEET_IDP_REDIRECT_URI so the package derives it from the browser request.'
+                );
+            }
+
+            return rtrim($single, '/');
         }
 
         $path = (string) config('fleet_idp.redirect_path', '/oauth/fleet-auth/callback');
@@ -141,7 +150,7 @@ class FleetIdpOAuth
             ]);
 
         if (! $response->successful()) {
-            throw new RuntimeException('OAuth token exchange failed: '.$response->body());
+            throw new RuntimeException(self::fleetAuthHttpErrorSummary($response, 'Fleet Auth token'));
         }
 
         /** @var array{access_token: string, token_type: string, expires_in?: int} $data */
@@ -177,12 +186,36 @@ class FleetIdpOAuth
             ->get($base.'/api/user');
 
         if (! $response->successful()) {
-            throw new RuntimeException('Failed to load IdP user: '.$response->body());
+            throw new RuntimeException(self::fleetAuthHttpErrorSummary($response, 'Fleet Auth profile'));
         }
 
         /** @var array{id: int|string, name?: string|null, email?: string|null} $data */
         $data = $response->json();
 
         return $data;
+    }
+
+    /**
+     * Human-readable line for logs and the OAuth failure page (OAuth JSON errors are safe to show).
+     */
+    protected static function fleetAuthHttpErrorSummary(Response $response, string $label): string
+    {
+        $json = $response->json();
+        if (is_array($json)) {
+            $desc = trim((string) ($json['error_description'] ?? ''));
+            if ($desc !== '') {
+                return $label.': '.$desc;
+            }
+            $err = trim((string) ($json['error'] ?? ''));
+            if ($err !== '') {
+                return $label.': '.$err;
+            }
+            $msg = trim((string) ($json['message'] ?? ''));
+            if ($msg !== '') {
+                return $label.': '.$msg;
+            }
+        }
+
+        return $label.' (HTTP '.$response->status().').';
     }
 }

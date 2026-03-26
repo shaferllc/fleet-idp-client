@@ -23,7 +23,8 @@ return [
     |
     | Leave FLEET_IDP_REDIRECT_URI unset to derive redirect_path from the current HTTP
     | request (scheme + host), or from APP_URL when there is no request (e.g. Artisan).
-    | Set FLEET_IDP_REDIRECT_URI when behind a proxy or you need a fixed public URL.
+    | Set FLEET_IDP_REDIRECT_URI to one full URL only — never a comma-separated list
+    | (register extra URIs on the Passport client in Fleet Auth).
     */
 
     'redirect_uri' => env('FLEET_IDP_REDIRECT_URI'),

@@ -6,6 +6,7 @@ namespace Fleet\IdpClient\Http\Controllers;
 
 use Fleet\IdpClient\FleetIdpEloquentUserProvisioner;
 use Fleet\IdpClient\FleetIdpOAuth;
+use Fleet\IdpClient\InvalidRedirectUriConfig;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -28,6 +29,8 @@ class FleetIdpOAuthWebController extends Controller
 
         try {
             $url = FleetIdpOAuth::authorizationRedirectUrl();
+        } catch (InvalidRedirectUriConfig $e) {
+            return $this->oauthFailureRedirect($e->getMessage());
         } catch (Throwable $e) {
             Log::warning('fleet_idp.oauth.start_failed', [
                 'message' => $e->getMessage(),
@@ -106,12 +109,14 @@ class FleetIdpOAuthWebController extends Controller
         try {
             $tokens = FleetIdpOAuth::exchangeCode((string) $request->query('code'));
             $remote = FleetIdpOAuth::fetchUser($tokens['access_token']);
+        } catch (InvalidRedirectUriConfig $e) {
+            return $this->oauthFailureRedirect($e->getMessage());
         } catch (Throwable $e) {
             Log::warning('fleet_idp.oauth.exchange_failed', [
                 'message' => $e->getMessage(),
             ]);
 
-            return $this->oauthFailureRedirect(trans('fleet-idp::oauth.exchange_failed'));
+            return $this->oauthFailureRedirect($this->friendlyFleetAuthCallbackError($e));
         }
 
         $sync = FleetIdpEloquentUserProvisioner::syncFromRemoteUser($remote);
@@ -180,9 +185,13 @@ class FleetIdpOAuthWebController extends Controller
         try {
             $tokens = FleetIdpOAuth::exchangeCode((string) $request->query('code'));
             $user = FleetIdpOAuth::fetchUser($tokens['access_token']);
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            Log::warning('fleet_idp.oauth.exchange_failed', [
+                'message' => $e->getMessage(),
+            ]);
+
             return redirect()->route($errorRoute)
-                ->withErrors([$errorKey => trans('fleet-idp::oauth.exchange_failed')]);
+                ->withErrors([$errorKey => $this->friendlyFleetAuthCallbackError($e)]);
         }
 
         $authKey = (string) config('fleet_idp.web.session.auth_session_key', 'fleet_console_ok');
@@ -199,6 +208,23 @@ class FleetIdpOAuthWebController extends Controller
         $postLogin = (string) config('fleet_idp.web.session.post_login_route', 'console.dashboard');
 
         return redirect()->intended(route($postLogin, absolute: false));
+    }
+
+    /**
+     * Show Passport / IdP error text when present; otherwise a generic line (and details if APP_DEBUG).
+     */
+    protected function friendlyFleetAuthCallbackError(Throwable $e): string
+    {
+        $m = $e->getMessage();
+        if (str_starts_with($m, 'Fleet Auth')) {
+            return $m;
+        }
+
+        if (config('app.debug')) {
+            return trans('fleet-idp::oauth.exchange_failed').' '.$m;
+        }
+
+        return trans('fleet-idp::oauth.exchange_failed');
     }
 
     protected function oauthFailureRedirect(string $message): RedirectResponse
