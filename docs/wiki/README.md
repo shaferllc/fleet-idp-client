@@ -5,6 +5,7 @@ This directory is the **source copy** of the [GitHub Wiki](https://github.com/sh
 | | |
 |--|--|
 | **Browse here** | [Home](./Home.md) · [Fleet Social Login](./Fleet-Social-Login.md) |
-| **Wiki tab** | [github.com/shaferllc/fleet-idp-client/wiki](https://github.com/shaferllc/fleet-idp-client/wiki) |
+| **Wiki (web)** | [github.com/shaferllc/fleet-idp-client/wiki](https://github.com/shaferllc/fleet-idp-client/wiki) |
+| **Wiki (git)** | `https://github.com/shaferllc/fleet-idp-client.wiki.git` |
 
-If the Wiki tab is empty, Wikis may be disabled or never initialized — see **[Home.md](./Home.md)** (“Enable the GitHub Wiki”).
+After editing these files, push to the wiki remote — see **[Home.md](./Home.md)** (“Sync docs/wiki → GitHub Wiki”).
