@@ -59,6 +59,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Registration mirroring (optional)
+    |--------------------------------------------------------------------------
+    |
+    | After a local user signs up, dispatch UserRegisteredForFleetProvisioning with
+    | the plain password. When provisioning.token is set, the package POSTs to
+    | Fleet Auth /api/provisioning/users (same Bearer token as configured in Fleet
+    | Admin → Client sites). Leave url empty to use {FLEET_IDP_URL}/api/provisioning/users.
+    |
+    */
+
+    'provisioning' => [
+        'token' => env('FLEET_AUTH_PROVISIONING_TOKEN', ''),
+        'url' => env('FLEET_AUTH_PROVISIONING_URL', ''),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Web OAuth (redirect + callback routes)
     |--------------------------------------------------------------------------
     |
