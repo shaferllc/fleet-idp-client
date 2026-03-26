@@ -25,7 +25,7 @@ The package is published on our **Packeton** Composer mirror. Add the repository
     }
 ],
 "require": {
-    "fleet/idp-client": "^0.3"
+    "fleet/idp-client": "^0.4"
 }
 ```
 
@@ -62,11 +62,11 @@ If you keep this repo next to an app, add a **path** repository **after** the Co
     }
 ],
 "require": {
-    "fleet/idp-client": "^0.3"
+    "fleet/idp-client": "^0.4"
 }
 ```
 
-If you **only** install from `packages.shafer.llc` (no path repo), omit `canonical: false` once the registry publishes a **tagged** release that satisfies `^0.3`.
+If you **only** install from `packages.shafer.llc` (no path repo), omit `canonical: false` once the registry publishes a **tagged** release that satisfies your constraint (e.g. `^0.4`).
 
 ### GitHub (VCS) fallback
 
@@ -75,19 +75,66 @@ If you **only** install from `packages.shafer.llc` (no path repo), omit `canonic
     { "type": "vcs", "url": "https://github.com/shaferllc/fleet-idp-client" }
 ],
 "require": {
-    "fleet/idp-client": "^0.3"
+    "fleet/idp-client": "^0.4"
 }
 ```
 
 ## Minimal app integration
 
-1. Set **`.env`** (`FLEET_IDP_URL`, client id/secret, redirect path/URI to match Passport — see [Configuration](#configuration)).
+1. Set **`.env`** — either run **`php artisan fleet:idp:configure`** against Fleet Auth (see [CLI bootstrap](#cli-bootstrap-fleetidpconfigure)) or set `FLEET_IDP_URL`, client id/secret, and redirect path/URI manually (see [Configuration](#configuration)).
 2. Choose **`FLEET_IDP_WEB_MODE`**: `eloquent` (default, Breeze-style login + `Auth::login`) or `session` (Fleet Console: session flags + IdP user array).
 3. Drop **`x-fleet-idp::oauth-button`** (with `variant`) on your login screen — **`href` is optional**; it defaults to the package redirect route.
 
 The package registers **`GET`** OAuth **start** and **callback** routes (see `routes/web.php`). Set `FLEET_IDP_WEB_ENABLED=false` if you register routes yourself.
 
 **Password grant** (email/password against Fleet Auth) is still a few lines in your login action: call `FleetIdpPasswordGrant::attempt()` before local `Auth::attempt()` (see Waypost’s Volt login).
+
+## CLI bootstrap (`fleet:idp:configure`)
+
+From **0.4.0**, the package registers an Artisan command that calls Fleet Auth’s **`POST /api/cli/setup`** and merges returned credentials into your app’s **`.env`**.
+
+### Fleet Auth (IdP) prerequisites
+
+- Set **`FLEET_AUTH_CLI_SETUP_TOKEN`** on Fleet Auth to a long random secret. If it is empty, the setup route is **not exposed** (clients receive **404**).
+- The token is sent as a **Bearer** header from the client app; it is **not** written into the client `.env`.
+
+### Usage (client app)
+
+Run from the **Laravel app root** (where `.env` lives). Use **`--dry-run`** to print JSON without modifying `.env`.
+
+```bash
+php artisan fleet:idp:configure \
+  --url=https://fleet-auth.example \
+  --token="$FLEET_AUTH_CLI_SETUP_TOKEN"
+```
+
+Interactive mode: omit `--url` / `--token` and the command will prompt.
+
+| Option | Description |
+|--------|---------------|
+| `--url=` | Fleet Auth **root** URL (no trailing path). |
+| `--token=` | Bearer value matching **`FLEET_AUTH_CLI_SETUP_TOKEN`** on Fleet Auth. |
+| `--name=` | Integration label (default `Waypost`). Creates/updates Passport clients named `{name}` and `{name} (password grant)`. |
+| `--redirect=` | Repeatable. OAuth **redirect_uri** values to register. Default: **`APP_URL` + `/oauth/fleet-auth/callback`** (requires `APP_URL` or `--client-url`). |
+| `--client-url=` | Trusted client **base URL** in Fleet Auth (`client_base_url`). Default: **`APP_URL`**. |
+| `--no-rotate` | Only merge redirect URIs; **do not** rotate existing client or provisioning secrets. |
+| `--dry-run` | Print the JSON response only; do **not** write `.env`. |
+| `--env-file=` | Relative path to env file (default `.env`). |
+
+### Keys written to `.env`
+
+The command updates or appends these variables when Fleet Auth returns a non-empty value:
+
+| Variable | Purpose |
+|----------|---------|
+| `FLEET_IDP_URL` | IdP root (from response or `--url`). |
+| `FLEET_IDP_CLIENT_ID` / `FLEET_IDP_CLIENT_SECRET` | Authorization-code OAuth client |
+| `FLEET_IDP_PASSWORD_CLIENT_ID` / `FLEET_IDP_PASSWORD_CLIENT_SECRET` | Password grant client |
+| `FLEET_AUTH_PROVISIONING_TOKEN` | Bearer for `POST /api/provisioning/users` (registration mirroring) |
+
+If the API omits a secret (for example **`--no-rotate`** and the IdP keeps an existing hashed secret), that key is **left unchanged** in `.env` — existing values are not cleared.
+
+**`FLEET_AUTH_PROVISIONING_URL`** is not set by the command; leave it unset to use the default **`{FLEET_IDP_URL}/api/provisioning/users`** (see `config/fleet_idp.php` → `provisioning.url`).
 
 ## Configuration
 
@@ -162,9 +209,11 @@ Publish **`fleet-idp-views`** to override templates under `resources/views/vendo
 
 ## Programmatic API
 
+- **CLI:** `fleet:idp:configure` — HTTP setup against Fleet Auth; see [CLI bootstrap](#cli-bootstrap-fleetidpconfigure).
 - **OAuth:** `FleetIdpOAuth` — `isConfigured()`, `redirectUri()`, `authorizationRedirectUrl()`, `exchangeCode()`, `fetchUser()`, …
 - **Password grant:** `FleetIdpPasswordGrant::attempt($email, $password)`
 - **Sync:** `FleetIdpEloquentUserProvisioner::syncFromRemoteUser($remote)`
+- **`.env` merge:** `Fleet\IdpClient\Support\EnvFileWriter::mergeIntoFile()` (used by the configure command)
 
 ## License
 
