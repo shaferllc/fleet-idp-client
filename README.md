@@ -132,9 +132,9 @@ The package registers **`GET oauth/{provider}`** and **`oauth/{provider}/callbac
 Use **`x-fleet-idp::social-login-buttons`** (prop **`variant`**: `waypost` or `console`) next to your email form. It includes the Fleet OAuth button when configured, plus GitHub/Google when:
 
 1. The provider has client id + secret in `config/services.php`, and  
-2. Fleet Auth **`GET /api/social-login/providers`** returns **`true`** for that key (cached; see `fleet_idp.socialite.policy_cache_seconds`).
+2. Fleet Auth **`GET /api/social-login/providers?client_id={FLEET_IDP_CLIENT_ID}`** returns **`true`** for that key (cached; see `fleet_idp.socialite.policy_cache_seconds`). **`FLEET_IDP_CLIENT_ID`** must match the Passport **authorization-code** client for this app.
 
-Toggle providers in **Fleet Auth → Admin → Integrations → Client app social login**. Env defaults: **`FLEET_AUTH_SOCIAL_GITHUB`**, **`FLEET_AUTH_SOCIAL_GOOGLE`**.
+Per-app toggles: **Fleet Auth → Admin → Integrations** (each OAuth client block) or **Edit OAuth client**. Without **`?client_id=`**, the IdP returns env defaults only (**`FLEET_AUTH_SOCIAL_GITHUB`**, **`FLEET_AUTH_SOCIAL_GOOGLE`**).
 
 If **`FLEET_IDP_URL`** is empty, policy checks are skipped (only local `services.*` matter). Set **`FLEET_IDP_SOCIALITE_POLICY_FAIL_OPEN=false`** to hide social buttons when the IdP cannot be reached.
 

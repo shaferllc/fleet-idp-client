@@ -59,10 +59,7 @@ final class FleetSocialLoginPolicy
         }
 
         $ttl = max(0, (int) config('fleet_idp.socialite.policy_cache_seconds', 60));
-        $explicit = config('fleet_idp.socialite.providers_url');
-        $url = is_string($explicit) && trim($explicit) !== ''
-            ? trim($explicit)
-            : $base.'/api/social-login/providers';
+        $url = self::providersRequestUrl();
 
         if ($ttl === 0) {
             return self::fetchOrFallback($url);
@@ -76,6 +73,27 @@ final class FleetSocialLoginPolicy
     private static function packageEnabled(): bool
     {
         return (bool) config('fleet_idp.socialite.enabled', true);
+    }
+
+    /**
+     * Full URL for GET /api/social-login/providers, including ?client_id= when configured.
+     */
+    private static function providersRequestUrl(): string
+    {
+        $explicit = config('fleet_idp.socialite.providers_url');
+        if (is_string($explicit) && trim($explicit) !== '') {
+            $url = trim($explicit);
+        } else {
+            $base = rtrim((string) config('fleet_idp.url', ''), '/');
+            $url = $base.'/api/social-login/providers';
+        }
+
+        $clientId = (string) config('fleet_idp.client_id', '');
+        if ($clientId !== '') {
+            $url .= (str_contains($url, '?') ? '&' : '?').'client_id='.rawurlencode($clientId);
+        }
+
+        return $url;
     }
 
     /**
