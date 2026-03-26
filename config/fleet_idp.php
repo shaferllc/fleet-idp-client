@@ -165,16 +165,13 @@ return [
     |
     | Registers oauth/{provider} routes and optional Blade buttons. Client id/secret
     | stay in config/services.php (services.github, services.google). Fleet Auth
-    | exposes GET /api/social-login/providers; this package caches that response
-    | to hide buttons when the IdP disables a provider. When enabled is false,
-    | Socialite routes are omitted and social-login-buttons hides GitHub, Google,
-    | and the Fleet OAuth button (password grant is unaffected).
+    | exposes GET /api/social-login/providers; this package caches that response.
+    | GitHub/Google/Fleet OAuth visibility and satellite warm/fail-open hints come from
+    | Fleet Auth (database IdP settings), not from env on the satellite.
     |
     */
 
     'socialite' => [
-        'enabled' => filter_var(env('FLEET_IDP_SOCIALITE_ENABLED', false), FILTER_VALIDATE_BOOL),
-
         'route_prefix' => env('FLEET_IDP_SOCIALITE_ROUTE_PREFIX', 'oauth'),
 
         'middleware' => array_values(array_filter(array_map('trim', explode(',', (string) env(
@@ -190,15 +187,7 @@ return [
          */
         'policy_cache_seconds' => max(0, (int) env('FLEET_IDP_SOCIALITE_POLICY_CACHE', 60)),
 
-        /*
-         * Prepend middleware to the web group so each HTTP request resolves the providers
-         * policy early (Octane-safe; disable with FLEET_IDP_SOCIALITE_WARM_POLICY_MIDDLEWARE=false).
-         */
-        'warm_policy_middleware' => filter_var(env('FLEET_IDP_SOCIALITE_WARM_POLICY_MIDDLEWARE', false), FILTER_VALIDATE_BOOL),
-
         'policy_timeout_seconds' => max(1, (int) env('FLEET_IDP_SOCIALITE_POLICY_TIMEOUT', 3)),
-
-        'policy_fail_open' => filter_var(env('FLEET_IDP_SOCIALITE_POLICY_FAIL_OPEN', false), FILTER_VALIDATE_BOOL),
 
         'null_password_for_social' => filter_var(env('FLEET_IDP_SOCIALITE_NULL_PASSWORD', true), FILTER_VALIDATE_BOOL),
 
@@ -265,14 +254,9 @@ return [
 
         /*
          * Guest route to the email code / magic link sign-in UI (registered by the satellite app).
+         * Override in config if your route name differs.
          */
-        'guest_email_code_route_name' => env('FLEET_IDP_EMAIL_SIGN_IN_GUEST_EMAIL_CODE_ROUTE', 'login.email-code'),
-
-        /*
-         * Show the “sign in without password” card on the login page even when Fleet policy
-         * does not advertise code/magic (local-only passwordless satellites).
-         */
-        'login_card_without_fleet_delivery' => filter_var(env('FLEET_IDP_EMAIL_SIGN_IN_LOGIN_CARD_WITHOUT_FLEET', false), FILTER_VALIDATE_BOOL),
+        'guest_email_code_route_name' => 'login.email-code',
 
         'user_enabled_attribute' => env('FLEET_IDP_EMAIL_SIGN_IN_USER_FLAG', 'email_code_login_enabled'),
 

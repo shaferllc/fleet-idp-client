@@ -74,7 +74,11 @@ class FleetIdpServiceProvider extends ServiceProvider
             ]);
             $this->publishes([
                 __DIR__.'/../config/fleet_idp.php' => config_path('fleet_idp.php'),
+                __DIR__.'/../resources/stubs/fleet_idp_overrides.php' => config_path('fleet_idp_overrides.php'),
             ], 'fleet-idp-config');
+            $this->publishes([
+                __DIR__.'/../resources/stubs/fleet_idp_overrides.php' => config_path('fleet_idp_overrides.php'),
+            ], 'fleet-idp-overrides');
             $this->publishes([
                 __DIR__.'/../lang' => lang_path('vendor/fleet-idp'),
             ], 'fleet-idp-lang');
@@ -147,11 +151,8 @@ class FleetIdpServiceProvider extends ServiceProvider
     protected function registerWarmSocialLoginPolicyMiddleware(): void
     {
         $this->app->booted(function (): void {
-            if (! filter_var(config('fleet_idp.socialite.warm_policy_middleware', true), FILTER_VALIDATE_BOOL)) {
-                return;
-            }
-
             $this->app->make(Router::class)->prependMiddlewareToGroup('web', WarmFleetSocialLoginPolicy::class);
         });
     }
 }
+

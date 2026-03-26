@@ -1,6 +1,6 @@
 # Configuration reference
 
-Config is merged from the package **`config/fleet_idp.php`**. Override with **`.env`** or publish **`fleet-idp-config`** and edit **`config/fleet_idp.php`**.
+Config is merged from the package **`config/fleet_idp.php`**. Override with **`.env`**, publish **`fleet-idp-config`** ( **`config/fleet_idp.php`** + **`config/fleet_idp_overrides.php`** ), or publish **`fleet-idp-overrides`** for the merge-only overrides file used with **`FleetIdpCustomization::merge()`**.
 
 Below is a **practical** grouping for operators. For every key, the published config file remains authoritative if values differ.
 

@@ -15,4 +15,5 @@ return [
     'callback_missing_params' => 'The sign-in response was incomplete. Please start again from the log in page.',
     'start_failed' => 'Could not start Fleet sign-in. Check that Fleet Auth is configured and reachable.',
     'not_configured' => 'Fleet sign-in is not configured for this application.',
+    'fleet_login_disabled' => 'Fleet sign-in is disabled for this application in Fleet Auth.',
 ];

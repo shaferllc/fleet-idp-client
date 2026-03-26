@@ -3,6 +3,7 @@
 namespace Fleet\IdpClient\View\Components;
 
 use Fleet\IdpClient\FleetIdpOAuth;
+use Fleet\IdpClient\Services\FleetSocialLoginPolicy;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Route;
 use Illuminate\View\Component;
@@ -35,8 +36,8 @@ class OAuthButton extends Component
 
     public function shouldRender(): bool
     {
-        return SocialLoginButtons::isSocialLoginUiEnabled()
-            && FleetIdpOAuth::isConfigured()
+        return FleetIdpOAuth::isConfigured()
+            && FleetSocialLoginPolicy::fleetLoginEnabled()
             && $this->resolvedHref() !== '';
     }
 

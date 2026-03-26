@@ -14,7 +14,7 @@ Run from your Laravel app root.
 php artisan fleet:idp:install
 ```
 
-Use **`--force`** to overwrite after a package upgrade. **`--with-config`** publishes `config/fleet_idp.php`. **`--with-migrations`** copies email-sign-in migrations into `database/migrations` (then set **`FLEET_IDP_EMAIL_SIGN_IN_LOAD_MIGRATIONS=false`**). See [AI assistant: satellite integration](AI-assistant-satellite-integration) for agent-oriented wiring notes.
+Use **`--force`** to overwrite after a package upgrade. **`--with-config`** publishes `config/fleet_idp.php` and **`config/fleet_idp_overrides.php`** (starter for **`FleetIdpCustomization::merge()`**). **`--with-migrations`** copies email-sign-in migrations into `database/migrations` (then set **`FLEET_IDP_EMAIL_SIGN_IN_LOAD_MIGRATIONS=false`**). See [AI assistant: satellite integration](AI-assistant-satellite-integration) for agent-oriented wiring notes.
 
 Granular publish (equivalent to the default install bundle when run together):
 
@@ -32,7 +32,8 @@ php artisan vendor:publish --tag=fleet-idp-satellite
 Optional:
 
 ```bash
-php artisan vendor:publish --tag=fleet-idp-config    # only if you want config in config/fleet_idp.php
+php artisan vendor:publish --tag=fleet-idp-config    # config/fleet_idp.php + config/fleet_idp_overrides.php
+php artisan vendor:publish --tag=fleet-idp-overrides # only config/fleet_idp_overrides.php
 php artisan vendor:publish --tag=fleet-idp-account-layout   # starter layout; included in fleet-idp-satellite / fleet:idp:install
 ```
 
@@ -41,7 +42,8 @@ php artisan vendor:publish --tag=fleet-idp-account-layout   # starter layout; in
 | **`fleet-idp-satellite`** | views + lang + `layouts/fleet-idp-account.blade.php` | Default bundle for new apps (same as **`fleet:idp:install`**). |
 | **`fleet-idp-views`** | `resources/views/vendor/fleet-idp/` | **Required for custom styling.** Prepended to the `fleet-idp` view namespace, so your files override the package. |
 | **`fleet-idp-lang`** | `lang/vendor/fleet-idp/` | Override copy without forking PHP; good for tone and locale. |
-| **`fleet-idp-config`** | `config/fleet_idp.php` | Full config in repo; optional if `.env` is enough. |
+| **`fleet-idp-config`** | `config/fleet_idp.php`, `config/fleet_idp_overrides.php` | Full config and/or merge-only overrides in repo; optional if `.env` is enough. |
+| **`fleet-idp-overrides`** | `config/fleet_idp_overrides.php` | Starter **`FleetIdpCustomization::merge()`** file without publishing the full `fleet_idp.php`. |
 | **`fleet-idp-account-layout`** | `resources/views/layouts/fleet-idp-account.blade.php` | Neutral starter shell; many apps instead point **`FLEET_IDP_ACCOUNT_LAYOUT`** at their existing **`layouts.guest`** (see [Account and password](Account-and-password)). |
 
 ## How overrides work

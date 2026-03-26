@@ -11,7 +11,7 @@ Use this page as **context for coding agents** (Cursor, Codex, etc.) after the h
    php artisan fleet:idp:install
    ```
 
-   Add **`--force`** to overwrite on upgrade. Add **`--with-config`** if the team wants `config/fleet_idp.php` in git. Add **`--with-migrations`** only when migrating off package auto-loaded migrations (see `FLEET_IDP_EMAIL_SIGN_IN_LOAD_MIGRATIONS` in package config comments).
+   Add **`--force`** to overwrite on upgrade. Add **`--with-config`** if the team wants `config/fleet_idp.php` and `config/fleet_idp_overrides.php` in git. Add **`--with-migrations`** only when migrating off package auto-loaded migrations (see `FLEET_IDP_EMAIL_SIGN_IN_LOAD_MIGRATIONS` in package config comments).
 
 3. **Bootstrap credentials** against Fleet Auth:
 

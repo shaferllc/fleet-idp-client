@@ -24,13 +24,8 @@ final class LoginScreenFleetSurfaces extends Component
         public string $variant = 'waypost',
         public bool $wireNavigate = false,
         public bool $showSessionAlerts = true,
-        public ?bool $loginCardWithoutFleetDelivery = null,
     ) {
         $this->guestEmailCodeRouteName = (string) config('fleet_idp.email_sign_in.guest_email_code_route_name', 'login.email-code');
-
-        $withoutFleet = $this->loginCardWithoutFleetDelivery !== null
-            ? $this->loginCardWithoutFleetDelivery
-            : filter_var(config('fleet_idp.email_sign_in.login_card_without_fleet_delivery', false), FILTER_VALIDATE_BOOL);
 
         $this->showPasswordlessCard = Route::has($this->guestEmailCodeRouteName)
             && FleetEmailSignIn::guestFlowAvailable()
@@ -38,7 +33,7 @@ final class LoginScreenFleetSurfaces extends Component
                 (FleetIdpEmailLogin::isAvailable()
                     && (FleetSocialLoginPolicy::emailLoginCodeAllowed()
                         || FleetSocialLoginPolicy::emailLoginMagicLinkAllowed()))
-                || $withoutFleet
+                || FleetSocialLoginPolicy::guestEmailLoginCardWithoutIdpDelivery()
             );
     }
 

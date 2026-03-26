@@ -28,6 +28,10 @@ class FleetIdpOAuthWebController extends Controller
             return $this->oauthFailureRedirect(trans('fleet-idp::oauth.not_configured'));
         }
 
+        if (! FleetSocialLoginPolicy::fleetLoginEnabled()) {
+            return $this->oauthFailureRedirect(trans('fleet-idp::oauth.fleet_login_disabled'));
+        }
+
         try {
             $url = FleetIdpOAuth::authorizationRedirectUrl();
         } catch (InvalidRedirectUriConfig $e) {

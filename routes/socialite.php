@@ -5,10 +5,6 @@ declare(strict_types=1);
 use Fleet\IdpClient\Http\Controllers\SocialiteOAuthController;
 use Illuminate\Support\Facades\Route;
 
-if (! filter_var(config('fleet_idp.socialite.enabled', false), FILTER_VALIDATE_BOOL)) {
-    return;
-}
-
 $middleware = config('fleet_idp.socialite.middleware', ['web']);
 $middleware = is_array($middleware) ? $middleware : [$middleware];
 

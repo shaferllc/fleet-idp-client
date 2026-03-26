@@ -25,7 +25,7 @@ class SocialLoginButtons extends Component
     public function __construct(string $variant = 'waypost')
     {
         $this->variant = $variant;
-        $this->fleetAuthEnabled = self::isSocialLoginUiEnabled() && FleetIdpOAuth::isConfigured();
+        $this->fleetAuthEnabled = FleetIdpOAuth::isConfigured() && FleetSocialLoginPolicy::fleetLoginEnabled();
         $this->githubEnabled = self::githubVisible();
         $this->googleEnabled = self::googleVisible();
         $this->anyEnabled = $this->githubEnabled || $this->googleEnabled || $this->fleetAuthEnabled;
@@ -33,35 +33,18 @@ class SocialLoginButtons extends Component
 
     public static function isEnabled(): bool
     {
-        if (! self::isSocialLoginUiEnabled()) {
-            return false;
-        }
-
         return self::githubVisible()
             || self::googleVisible()
-            || FleetIdpOAuth::isConfigured();
-    }
-
-    public static function isSocialLoginUiEnabled(): bool
-    {
-        return filter_var(config('fleet_idp.socialite.enabled', false), FILTER_VALIDATE_BOOL);
+            || (FleetIdpOAuth::isConfigured() && FleetSocialLoginPolicy::fleetLoginEnabled());
     }
 
     private static function githubVisible(): bool
     {
-        if (! self::isSocialLoginUiEnabled()) {
-            return false;
-        }
-
         return self::servicesConfigured('github') && FleetSocialLoginPolicy::githubAllowed();
     }
 
     private static function googleVisible(): bool
     {
-        if (! self::isSocialLoginUiEnabled()) {
-            return false;
-        }
-
         return self::servicesConfigured('google') && FleetSocialLoginPolicy::googleAllowed();
     }
 

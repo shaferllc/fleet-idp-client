@@ -10,7 +10,7 @@ class InstallFleetSatelliteCommand extends Command
 {
     protected $signature = 'fleet:idp:install
                             {--force : Overwrite files that already exist}
-                            {--with-config : Also publish config/fleet_idp.php}
+                            {--with-config : Also publish config/fleet_idp.php and config/fleet_idp_overrides.php}
                             {--with-migrations : Publish email-sign-in migrations (then set FLEET_IDP_EMAIL_SIGN_IN_LOAD_MIGRATIONS=false in .env)}
                             {--no-views : Skip Blade views (resources/views/vendor/fleet-idp)}
                             {--no-lang : Skip translations (lang/vendor/fleet-idp)}

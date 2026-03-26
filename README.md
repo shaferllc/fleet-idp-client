@@ -194,7 +194,8 @@ Config is merged from the package (`config/fleet_idp.php`). Override with `.env`
 ```bash
 php artisan fleet:idp:install   # recommended: views + lang + account layout stub
 php artisan vendor:publish --tag=fleet-idp-satellite   # same bundle as install (no optional flags)
-php artisan vendor:publish --tag=fleet-idp-config   # optional: config/fleet_idp.php in app
+php artisan vendor:publish --tag=fleet-idp-config   # optional: config/fleet_idp.php + config/fleet_idp_overrides.php
+php artisan vendor:publish --tag=fleet-idp-overrides # optional: only config/fleet_idp_overrides.php (merge hook file)
 php artisan vendor:publish --tag=fleet-idp-lang    # or rely on fleet:idp:install
 php artisan vendor:publish --tag=fleet-idp-views    # or rely on fleet:idp:install
 php artisan vendor:publish --tag=fleet-idp-account-layout   # included in fleet:idp:install
@@ -204,25 +205,22 @@ php artisan vendor:publish --tag=fleet-idp-account-layout   # included in fleet:
 
 ### PHP overrides (no published config)
 
-Call **`FleetIdpCustomization::configureUsing()`** from your app’s **`register()`** method (not `boot()`), and read or replace values on the **`Illuminate\Contracts\Config\Repository`** (same keys as `config/fleet_idp.php`). This runs after the package merges its defaults and before OAuth routes load.
+Register from your app’s **`register()`** method (not `boot()`), after the package merges its defaults and before OAuth routes load.
+
+**`FleetIdpCustomization::merge($array)`** — recursive merge into `fleet_idp` (typical: `return [...]` from an app-owned PHP file you `require`). A starter file ships in the package; publish with **`--tag=fleet-idp-overrides`** or **`--tag=fleet-idp-config`**.
 
 ```php
 use Fleet\IdpClient\FleetIdpCustomization;
-use Illuminate\Contracts\Config\Repository;
 
 public function register(): void
 {
-    FleetIdpCustomization::configureUsing(function (Repository $config): void {
-        $fleet = $config->get('fleet_idp', []);
-        $config->set('fleet_idp', array_replace_recursive($fleet, [
-            'redirect_path' => '/auth/callback',
-            // …
-        ]));
-    });
+    FleetIdpCustomization::merge(require config_path('fleet_idp_overrides.php'));
 }
 ```
 
-Prefer **`.env`** when a value is already exposed there; use this hook for app-only defaults or computed values.
+**`FleetIdpCustomization::configureUsing()`** — full control via **`Illuminate\Contracts\Config\Repository`** when you need logic beyond a static array.
+
+Prefer **`.env`** when a value is already exposed on the package’s `config/fleet_idp.php` keys; use **`merge()`** for app-only default trees or keys not driven by env.
 
 ### Core
 
