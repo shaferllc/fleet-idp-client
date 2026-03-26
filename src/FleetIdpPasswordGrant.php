@@ -44,6 +44,7 @@ class FleetIdpPasswordGrant
             /** @var Response $response */
             $response = Http::asForm()
                 ->acceptJson()
+                ->withOptions(FleetIdpOAuth::redirectPreservingPostOptions())
                 ->post(FleetIdpOAuth::requireIdpRootUrl().'/oauth/token', [
                     'grant_type' => 'password',
                     'username' => $email,

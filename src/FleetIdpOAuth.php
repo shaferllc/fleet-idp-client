@@ -141,6 +141,7 @@ class FleetIdpOAuth
         /** @var Response $response */
         $response = Http::asForm()
             ->acceptJson()
+            ->withOptions(self::redirectPreservingPostOptions())
             ->post(self::requireIdpRootUrl().'/oauth/token', [
                 'grant_type' => 'authorization_code',
                 'client_id' => config('fleet_idp.client_id'),
@@ -193,6 +194,22 @@ class FleetIdpOAuth
         $data = $response->json();
 
         return $data;
+    }
+
+    /**
+     * Guzzle follows 302/301 by reissuing as GET, which breaks POST /oauth/token after e.g. http→https redirects.
+     *
+     * @return array<string, mixed>
+     */
+    public static function redirectPreservingPostOptions(): array
+    {
+        return [
+            'allow_redirects' => [
+                'max' => 5,
+                'strict' => true,
+                'protocols' => ['http', 'https'],
+            ],
+        ];
     }
 
     /**
