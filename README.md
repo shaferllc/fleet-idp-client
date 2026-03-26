@@ -48,6 +48,8 @@ The service provider is **auto-discovered**; no manual `config/app.php` entry.
 
 Treat **[packages.shafer.llc — `fleet/idp-client`](https://packages.shafer.llc/packages/fleet/idp-client)** as the **source of truth** for installs on servers and in CI: **`composer install` / `composer update`** must reach **`https://packages.shafer.llc`** with valid **`http-basic.packages.shafer.llc`** (or **`COMPOSER_AUTH`**) credentials. **Path** and **VCS** repositories are for local development; a deploy pipeline that only has a path checkout will not install this package in production. After each deploy, confirm the build log resolved **`fleet/idp-client`** from the mirror (not a missing symlinked path).
 
+If installs fail with **`git@github.com: Permission denied (publickey)`**, Composer is using **git source** instead of a **dist** zip. Fix by: making the GitHub repo **public** (Packeton can stay private), configuring **Packeton** to host **dist** archives (with server-side Git credentials), or setting **`COMPOSER_AUTH`** for **github.com** on the deploy host. See your app README (e.g. Waypost **Deploy** troubleshooting) for detail.
+
 ### Monorepo / local path (developers)
 
 If you keep this repo next to an app, add a **path** repository **after** the Composer repo and mark the registry as **non-canonical** so Composer can satisfy the constraint from the path checkout when the mirror only exposes `dev-main` (see [repository priority](https://getcomposer.org/repoprio)):
