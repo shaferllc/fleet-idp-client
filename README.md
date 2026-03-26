@@ -1,25 +1,27 @@
 # fleet/idp-client
 
-Laravel package: OAuth2 **authorization-code** flow + optional Passport **password grant** against **Fleet Auth**, plus Eloquent user provisioning from the IdP `/api/user` payload.
+Laravel package: OAuth2 **authorization-code** flow + optional Passport **password grant** against **Fleet Auth**, plus Eloquent user provisioning from the IdP `GET /api/user` response.
 
-**Repository:** [github.com/shaferllc/fleet-idp-client](https://github.com/shaferllc/fleet-idp-client)
+**Private registry (install):** [packages.shafer.llc — fleet/idp-client](https://packages.shafer.llc/packages/fleet/idp-client)
+
+**Source:** [github.com/shaferllc/fleet-idp-client](https://github.com/shaferllc/fleet-idp-client)
 
 **Identity provider:** [github.com/shaferllc/fleet-auth](https://github.com/shaferllc/fleet-auth)
 
 ## Requirements
 
 - PHP **8.3+**
-- Laravel **12** or **13** (Illuminate components `^12.0|^13.0`)
+- Laravel **12** or **13** (Illuminate `^12.0|^13.0`)
 
-## Install
+## Install from packages.shafer.llc
 
-### From GitHub (clone-friendly)
+The package is published on our **Packeton** Composer mirror. Add the repository root (not the per-package URL), then require the package:
 
 ```json
 "repositories": [
     {
-        "type": "vcs",
-        "url": "https://github.com/shaferllc/fleet-idp-client"
+        "type": "composer",
+        "url": "https://packages.shafer.llc"
     }
 ],
 "require": {
@@ -27,32 +29,69 @@ Laravel package: OAuth2 **authorization-code** flow + optional Passport **passwo
 }
 ```
 
-Until the package is on Packagist, keep the `vcs` entry (or use `"@dev"` with a **branch alias** if you require `dev-main`).
+Authenticate with the registry (your Packeton username/API token or password — see your account on [packages.shafer.llc](https://packages.shafer.llc)):
 
-### Monorepo / local path
+```bash
+composer config --global http-basic.packages.shafer.llc YOUR_USERNAME YOUR_TOKEN
+# or project-local: composer config http-basic.packages.shafer.llc YOUR_USERNAME YOUR_TOKEN
+```
+
+Then:
+
+```bash
+composer update fleet/idp-client
+```
+
+The service provider is **auto-discovered**; no manual `config/app.php` entry.
+
+### Monorepo / local path (developers)
+
+If you keep this repo next to an app, add a **path** repository **after** the Composer repo and mark the registry as **non-canonical** so Composer can satisfy `^0.1` from the path checkout when the mirror only exposes `dev-main` (see [repository priority](https://getcomposer.org/repoprio)):
 
 ```json
 "repositories": [
-    { "type": "path", "url": "../fleet-idp-client", "options": { "symlink": true } }
+    {
+        "type": "composer",
+        "url": "https://packages.shafer.llc",
+        "canonical": false
+    },
+    {
+        "type": "path",
+        "url": "../fleet-idp-client",
+        "options": { "symlink": true }
+    }
 ],
 "require": {
-    "fleet/idp-client": "@dev"
+    "fleet/idp-client": "^0.1"
 }
 ```
 
-Run `composer update fleet/idp-client`. The service provider is auto-discovered.
+If you **only** install from `packages.shafer.llc` (no path repo), omit `canonical: false` once the registry publishes a **tagged** `0.1.x` release that satisfies `^0.1`.
+
+### GitHub (VCS) fallback
+
+```json
+"repositories": [
+    { "type": "vcs", "url": "https://github.com/shaferllc/fleet-idp-client" }
+],
+"require": {
+    "fleet/idp-client": "^0.1"
+}
+```
 
 ## Configuration
 
-Config is merged from the package. Override with env (see `config/fleet_idp.php` in this repo):
+Config is merged from the package (`config/fleet_idp.php`). Override with `.env`:
 
 | Variable | Purpose |
 |----------|---------|
-| `FLEET_IDP_URL` | Fleet Auth **root** only (e.g. `https://fleet-auth.test`). Never set this to a client callback path. |
+| `FLEET_IDP_URL` | Fleet Auth **root** only (e.g. `https://fleet-auth.example.com`). Never your app’s callback URL. |
 | `FLEET_IDP_CLIENT_ID` / `FLEET_IDP_CLIENT_SECRET` | Authorization-code OAuth client |
-| `FLEET_IDP_REDIRECT_URI` | Must match a Passport `redirect` URI (default `{APP_URL}/oauth/fleet-auth/callback`; Fleet Console usually sets `{APP_URL}/auth/callback`) |
+| `FLEET_IDP_REDIRECT_URI` | Full callback URL; if unset, package uses `rtrim(APP_URL) . redirect_path` |
+| `FLEET_IDP_REDIRECT_PATH` | Path segment only (default `/oauth/fleet-auth/callback`). Fleet Console typically uses `/auth/callback`. |
 | `FLEET_IDP_PASSWORD_CLIENT_ID` / `FLEET_IDP_PASSWORD_CLIENT_SECRET` | Optional password grant |
-| `FLEET_IDP_USER_MODEL` | Eloquent user class for provisioning (e.g. `App\Models\User`) |
+| `FLEET_IDP_USER_MODEL` | Eloquent user class for provisioning |
+| `FLEET_IDP_SESSION_STATE_KEY` | Session key for OAuth `state` (optional) |
 
 Optional publish:
 
@@ -61,13 +100,60 @@ php artisan vendor:publish --tag=fleet-idp-config
 php artisan vendor:publish --tag=fleet-idp-lang
 ```
 
-## Usage in an app
+## Programmatic API
 
-- **OAuth:** `Fleet\IdpClient\FleetIdpOAuth` — `isConfigured()`, `authorizationRedirectUrl()`, `exchangeCode()`, `fetchUser()`, `fetchUserWithToken()`, `requireIdpRootUrl()`.
-- **Password grant + sync:** `Fleet\IdpClient\FleetIdpPasswordGrant::attempt($email, $password)` returns the local Eloquent user or `null`.
+- **OAuth:** `Fleet\IdpClient\FleetIdpOAuth` — `isConfigured()`, `redirectUri()`, `authorizationRedirectUrl()`, `exchangeCode()`, `fetchUser()`, `fetchUserWithToken()`, `requireIdpRootUrl()`.
+- **Password grant + sync:** `Fleet\IdpClient\FleetIdpPasswordGrant::attempt($email, $password)` → local user or `null`.
 - **Sync only:** `Fleet\IdpClient\FleetIdpEloquentUserProvisioner::syncFromRemoteUser($remote)` — expects IdP `/api/user` JSON.
 
-Routes, controllers, and Blade/Livewire views stay in each application (e.g. [Waypost](https://github.com/shaferllc/waypost), [Fleet Console](https://github.com/shaferllc/fleet-console)).
+## Views and UI (how to implement in your app)
+
+The package **does not ship Blade views**. You keep full control of markup and design. Wire **routes**, a small **controller**, and your **templates**:
+
+### 1. Routes (guest)
+
+Register a **redirect** route (starts the OAuth flow) and a **callback** route (exchanges `code`, loads user, starts session).
+
+Example paths:
+
+| App | Redirect | Callback |
+|-----|----------|----------|
+| Waypost | `GET /oauth/fleet-auth` | `GET /oauth/fleet-auth/callback` |
+| Fleet Console | `GET /login?sso=1` (or dedicated path) | `GET /auth/callback` |
+
+The callback URL must **exactly** match a redirect URI registered on the Passport client in Fleet Auth.
+
+### 2. Controller pattern
+
+- **Redirect:** if `FleetIdpOAuth::isConfigured()`, `return redirect()->away(FleetIdpOAuth::authorizationRedirectUrl());` (stores `state` in session).
+- **Callback:** validate `code` + `state` against `config('fleet_idp.session_oauth_state_key')`, then `FleetIdpOAuth::exchangeCode($code)`, `FleetIdpOAuth::fetchUser($accessToken)`, then either:
+  - **Eloquent app (e.g. Waypost):** `FleetIdpEloquentUserProvisioner::syncFromRemoteUser($remote)` and `Auth::login($user)`.
+  - **Session-only app (e.g. Fleet Console):** store IdP profile in session and set your app’s “logged in” flag.
+
+Reference implementations:
+
+- Waypost: `App\Http\Controllers\Auth\FleetAuthController`, routes in `routes/auth.php`.
+- Fleet Console: `App\Http\Controllers\ConsoleAuthController`, SSO via `?sso=1` on the login page.
+
+### 3. Views / Livewire
+
+- **OAuth button:** render only when `FleetIdpOAuth::isConfigured()` — e.g. a link to your **redirect** route (Waypost: `route('oauth.fleet-auth.redirect')`).
+- **Password grant:** in your login action, if `FleetIdpPasswordGrant::isConfigured()`, call `FleetIdpPasswordGrant::attempt($email, $password)` before falling back to local `Auth::attempt`.
+- **Copy / layout:** optional hints when IdP is configured (Waypost Volt login checks `FleetIdpPasswordGrant::isConfigured()` and `FleetIdpOAuth::isConfigured()` for helper text).
+
+Waypost reference files:
+
+- `resources/views/components/oauth-providers.blade.php` — “Continue with Fleet” button.
+- `app/View/Components/OauthProviders.php` — sets `fleetAuthEnabled` from `FleetIdpOAuth::isConfigured()`.
+- `resources/views/livewire/pages/auth/login.blade.php` — password grant + OAuth providers + divider.
+
+Fleet Console reference:
+
+- `resources/views/console/login.blade.php` — “Sign in with Fleet account” when `$fleetIdpEnabled` is true.
+
+### 4. Translations
+
+Validation / error strings from the package live under `fleet-idp::errors.*` if published; you can also use your own messages in the controller when redirecting back to login with `oauth_error` or validation errors.
 
 ## License
 
