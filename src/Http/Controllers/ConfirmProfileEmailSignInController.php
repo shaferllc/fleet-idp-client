@@ -11,6 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 /**
  * Confirms profile email-sign-in toggles: GET shows an interstitial (token in email link);
@@ -71,6 +72,14 @@ class ConfirmProfileEmailSignInController
 
         $routeName = (string) $request->route()->getName();
 
+        $authedRoute = (string) config(
+            'fleet_idp.email_sign_in.profile_confirm.redirect_route_when_authenticated',
+            'profile'
+        );
+        $backToProfileUrl = Auth::check() && Route::has($authedRoute)
+            ? route($authedRoute)
+            : null;
+
         return view('fleet-idp::profile-email-sign-in-confirm', [
             'title' => $kind === 'magic'
                 ? __('fleet-idp::email_sign_in.profile_confirm_page_title_magic')
@@ -83,6 +92,7 @@ class ConfirmProfileEmailSignInController
                 : __('fleet-idp::email_sign_in.profile_confirm_page_button_code'),
             'routeName' => $routeName,
             'token' => $token,
+            'backToProfileUrl' => $backToProfileUrl,
         ]);
     }
 
@@ -127,11 +137,11 @@ class ConfirmProfileEmailSignInController
                 ->with('error', __('fleet-idp::email_sign_in.profile_confirm_wrong_account'));
         }
 
-        $user->forceFill([
-            $spec['enabled'] => true,
-            $spec['pending_hash'] => null,
-            $spec['pending_expires'] => null,
-        ])->save();
+        match ($kind) {
+            'code' => ProfileEmailSignInConfirmation::completeEmailCodeProfileConfirm($user),
+            'magic' => ProfileEmailSignInConfirmation::completeMagicLinkProfileConfirm($user),
+            default => abort(404),
+        };
 
         $successMessage = $kind === 'magic'
             ? __('fleet-idp::email_sign_in.profile_confirm_magic_success')

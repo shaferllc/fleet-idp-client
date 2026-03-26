@@ -7,8 +7,10 @@ namespace Fleet\IdpClient;
 use Fleet\IdpClient\Support\FleetPasswordRouting;
 use Fleet\IdpClient\Support\FleetProvisioningPasswordChange;
 use Fleet\IdpClient\Support\FleetProvisioningPasswordReset;
+use Fleet\IdpClient\Support\FleetProvisioningUserCreate;
 use Fleet\IdpClient\Support\FleetProvisioningUserLookup;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Single entry point for satellites: password routing, Fleet URLs, provisioning lookup.
@@ -86,5 +88,16 @@ final class FleetIdp
     public static function attemptFleetPasswordChange(string $email, string $currentPassword, string $newPassword, string $newPasswordConfirmation): array
     {
         return FleetProvisioningPasswordChange::attempt($email, $currentPassword, $newPassword, $newPasswordConfirmation);
+    }
+
+    /**
+     * Create or acknowledge the user on Fleet Auth via provisioning API (same as registration mirror).
+     * Does not set satellite provider / provider_id; use OAuth “Continue with Fleet” to link the session.
+     *
+     * @return array{ok: bool, status: ?string, error: ?string, http_status: ?int}
+     */
+    public static function attemptProvisionUserToFleet(Model $user, string $plainPassword): array
+    {
+        return FleetProvisioningUserCreate::attempt($user, $plainPassword);
     }
 }

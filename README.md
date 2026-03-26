@@ -72,11 +72,16 @@ Older docs referred to **`fleet/idp-client`** on **packages.shafer.llc**. Migrat
 
 ## Minimal app integration
 
-1. Set **`.env`** — either run **`php artisan fleet:idp:configure`** against Fleet Auth (see [CLI bootstrap](#cli-bootstrap-fleetidpconfigure)) or set `FLEET_IDP_URL`, client id/secret, and redirect path/URI manually (see [Configuration](#configuration)).
-2. Choose **`FLEET_IDP_WEB_MODE`**: `eloquent` (default, Breeze-style login + `Auth::login`) or `session` (Fleet Console: session flags + IdP user array).
-3. Drop **`x-fleet-idp::oauth-button`** (with `variant`) on your login screen — **`href` is optional**; it defaults to the package redirect route.
+1. **Publish themed assets** for anything customer-facing: **`php artisan fleet:idp:install`** (views + lang + optional layout stub). Agents can follow **[docs/wiki/AI-assistant-satellite-integration.md](docs/wiki/AI-assistant-satellite-integration.md)** after this step. Same files as **`php artisan vendor:publish --tag=fleet-idp-satellite`**.
+2. Set **`.env`** — either run **`php artisan fleet:idp:configure`** against Fleet Auth (see [CLI bootstrap](#cli-bootstrap-fleetidpconfigure)) or set `FLEET_IDP_URL`, client id/secret, and redirect path/URI manually (see [Configuration](#configuration)).
+3. Choose **`FLEET_IDP_WEB_MODE`**: `eloquent` (default, Breeze-style login + `Auth::login`) or `session` (Fleet Console: session flags + IdP user array).
+4. Drop **`x-fleet-idp::oauth-button`** (with `variant`) on your login screen — **`href` is optional**; it defaults to the package redirect route.
 
 The package registers **`GET`** OAuth **start** and **callback** routes (see `routes/web.php`). Set `FLEET_IDP_WEB_ENABLED=false` if you register routes yourself.
+
+### Artisan: `fleet:idp:install`
+
+Publishes **`fleet-idp-satellite`** (Blade under `resources/views/vendor/fleet-idp/`, lang files, `layouts/fleet-idp-account.blade.php` stub). Options: **`--force`**, **`--with-config`**, **`--with-migrations`**, **`--no-views`**, **`--no-lang`**, **`--no-account-layout`**. Run **`fleet:idp:configure`** afterward for `.env` secrets.
 
 **Password grant** (email/password against Fleet Auth) is still a few lines in your login action: call `FleetIdpPasswordGrant::attempt()` before local `Auth::attempt()` (see Waypost’s Volt login).
 
@@ -85,8 +90,9 @@ The package registers **`GET`** OAuth **start** and **callback** routes (see `ro
 Forgot password, reset password, Fleet confirmation, change password, and related partials ship with a **minimal, unstyled** default so the package works out of the box. **For production satellites you should publish these views and style them** to match login, register, and your design system (inputs, buttons, alerts, marketing shell).
 
 ```bash
-php artisan vendor:publish --tag=fleet-idp-views
-php artisan vendor:publish --tag=fleet-idp-lang
+php artisan fleet:idp:install
+# or: php artisan vendor:publish --tag=fleet-idp-views
+#     php artisan vendor:publish --tag=fleet-idp-lang
 ```
 
 Overrides live under **`resources/views/vendor/fleet-idp/`** (prepended to the `fleet-idp` namespace). Set **`FLEET_IDP_ACCOUNT_LAYOUT`** to your existing guest/marketing layout (e.g. **`layouts.guest`**) if that layout supports Blade **`@section('content')`** alongside Livewire **`$slot`** — or publish **`fleet-idp-account-layout`** for a starter layout.
@@ -186,10 +192,12 @@ If **`FLEET_IDP_URL`** is empty, policy checks are skipped (only local `services
 Config is merged from the package (`config/fleet_idp.php`). Override with `.env` or publish:
 
 ```bash
+php artisan fleet:idp:install   # recommended: views + lang + account layout stub
+php artisan vendor:publish --tag=fleet-idp-satellite   # same bundle as install (no optional flags)
 php artisan vendor:publish --tag=fleet-idp-config   # optional: config/fleet_idp.php in app
-php artisan vendor:publish --tag=fleet-idp-lang    # recommended: lang/vendor/fleet-idp
-php artisan vendor:publish --tag=fleet-idp-views    # recommended for production UX
-php artisan vendor:publish --tag=fleet-idp-account-layout   # optional starter layout
+php artisan vendor:publish --tag=fleet-idp-lang    # or rely on fleet:idp:install
+php artisan vendor:publish --tag=fleet-idp-views    # or rely on fleet:idp:install
+php artisan vendor:publish --tag=fleet-idp-account-layout   # included in fleet:idp:install
 ```
 
 **Treat `fleet-idp-views` as part of your auth surface area** — commit the published files and review diffs when upgrading the package. See [Publishing views and styling](docs/wiki/Publishing-views-and-styling.md).

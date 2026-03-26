@@ -28,9 +28,19 @@ return [
     'profile_confirm_page_button_magic' => 'Turn on magic sign-in',
     'profile_confirm_page_button_code' => 'Turn on email codes',
 
+    'profile_confirm_back_to_profile' => 'Back to profile',
+
+    'profile_confirm_close_tab_hint' => 'After you confirm, we’ll send you to your profile (or sign-in). You can close this tab anytime.',
+
     'confirm_password_modal_password_label' => 'Current password',
     'confirm_password_modal_confirm' => 'Confirm',
     'confirm_password_modal_cancel' => 'Cancel',
+
+    'profile_exclusive_summary' => 'Choose one passwordless option for the email sign-in page. Only one can be on at a time. What you can enable depends on your organization’s settings.',
+
+    'profile_exclusive_code_blocked' => 'Turn off magic link (or cancel its pending email) before enabling one-time codes.',
+
+    'profile_exclusive_magic_blocked' => 'Turn off one-time codes (or cancel its pending email) before enabling magic links.',
 
     'mail_code_subject' => 'Your :app sign-in code',
     'mail_code_intro' => 'Use this code to sign in to :app. It expires in :minutes minutes.',

@@ -51,6 +51,22 @@ final class EmailSignInUserOptions
     }
 
     /**
+     * When true, only one of code or magic-link may be enabled (or pending) on the user model.
+     * Disabled automatically when both methods use the same attribute (legacy single flag).
+     */
+    public static function mutuallyExclusiveCodeAndMagic(): bool
+    {
+        if (self::codeEnabledAttribute() === self::magicLinkEnabledAttribute()) {
+            return false;
+        }
+
+        return filter_var(
+            config('fleet_idp.email_sign_in.mutually_exclusive_code_and_magic', false),
+            FILTER_VALIDATE_BOOLEAN
+        );
+    }
+
+    /**
      * What to show on the guest email sign-in page when Fleet password client is configured (org policy caps options).
      */
     public static function loginPageOffersCode(): bool

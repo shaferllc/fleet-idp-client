@@ -4,10 +4,10 @@ namespace Fleet\IdpClient;
 
 use Fleet\IdpClient\Console\ConfigureFleetIdpCommand;
 use Fleet\IdpClient\Console\ForgetSocialLoginPolicyCacheCommand;
+use Fleet\IdpClient\Console\InstallFleetSatelliteCommand;
 use Fleet\IdpClient\Contracts\EmailSignInSessionCompleter;
 use Fleet\IdpClient\Listeners\ProvisionRegisteredUserOnFleetAuth;
 use Fleet\IdpClient\Support\DefaultEmailSignInSessionCompleter;
-use Fleet\IdpClient\View\Components\ConfirmCurrentPasswordModal;
 use Fleet\IdpClient\View\Components\ManagedPasswordNotice;
 use Fleet\IdpClient\View\Components\OAuthButton;
 use Illuminate\Auth\Events\Registered;
@@ -47,7 +47,6 @@ class FleetIdpServiceProvider extends ServiceProvider
          */
         Blade::component(OAuthButton::class, 'fleet-idp::oauth-button');
         Blade::component(ManagedPasswordNotice::class, 'fleet-idp::managed-password-notice');
-        Blade::component(ConfirmCurrentPasswordModal::class, 'fleet-idp::confirm-current-password-modal');
 
         $this->applyOptionalSatelliteAccountLayout();
 
@@ -65,6 +64,7 @@ class FleetIdpServiceProvider extends ServiceProvider
             $this->commands([
                 ConfigureFleetIdpCommand::class,
                 ForgetSocialLoginPolicyCacheCommand::class,
+                InstallFleetSatelliteCommand::class,
             ]);
             $this->publishes([
                 __DIR__.'/../config/fleet_idp.php' => config_path('fleet_idp.php'),
@@ -81,6 +81,16 @@ class FleetIdpServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../database/migrations' => database_path('migrations'),
             ], 'fleet-idp-email-sign-in-migrations');
+
+            /*
+             * One-shot bundle for new satellites: themed auth/account surfaces without config
+             * (env-driven defaults stay in the package until --with-config on fleet:idp:install).
+             */
+            $this->publishes([
+                __DIR__.'/../lang' => lang_path('vendor/fleet-idp'),
+                __DIR__.'/../resources/views' => resource_path('views/vendor/fleet-idp'),
+                __DIR__.'/../resources/stubs/fleet-idp-account-layout.blade.php' => resource_path('views/layouts/fleet-idp-account.blade.php'),
+            ], 'fleet-idp-satellite');
         }
     }
 

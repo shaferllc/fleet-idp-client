@@ -69,23 +69,15 @@ final class FleetEmailSignIn
             return ['ok' => true];
         }
 
+        if ($deny = self::policyDeniesDelivery($delivery)) {
+            return $deny;
+        }
+
         if (FleetIdp::passwordManagedByIdp($user)) {
             if (! FleetIdpEmailLogin::isAvailable()) {
                 return [
                     'ok' => false,
                     'error' => __('Central sign-in is not configured. Use password login or contact support.'),
-                ];
-            }
-            if ($delivery === 'code' && ! FleetSocialLoginPolicy::emailLoginCodeAllowed()) {
-                return [
-                    'ok' => false,
-                    'error' => __('Your organization has not enabled email codes for this app. Ask a Fleet admin or use password login.'),
-                ];
-            }
-            if ($delivery === 'magic_link' && ! FleetSocialLoginPolicy::emailLoginMagicLinkAllowed()) {
-                return [
-                    'ok' => false,
-                    'error' => __('Your organization has not enabled magic links for this app. Ask a Fleet admin or use password login.'),
                 ];
             }
 
@@ -153,5 +145,34 @@ final class FleetEmailSignIn
         /** @var class-string<Model> $class */
 
         return $class::query()->where('email', $email)->first();
+    }
+
+    /**
+     * When the satellite is wired to Fleet (password grant), org policy applies to every account,
+     * including satellite-only users who receive mail via {@see LocalEmailLoginService}.
+     *
+     * @return array{ok: false, error: string}|null
+     */
+    private static function policyDeniesDelivery(string $delivery): ?array
+    {
+        if (! FleetIdpEmailLogin::isAvailable()) {
+            return null;
+        }
+
+        if ($delivery === 'code' && ! FleetSocialLoginPolicy::emailLoginCodeAllowed()) {
+            return [
+                'ok' => false,
+                'error' => __('Your organization has not enabled email codes for this app. Ask a Fleet admin or use password login.'),
+            ];
+        }
+
+        if ($delivery === 'magic_link' && ! FleetSocialLoginPolicy::emailLoginMagicLinkAllowed()) {
+            return [
+                'ok' => false,
+                'error' => __('Your organization has not enabled magic links for this app. Ask a Fleet admin or use password login.'),
+            ];
+        }
+
+        return null;
     }
 }

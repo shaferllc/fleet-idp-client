@@ -62,6 +62,11 @@ final class ProfileEmailSignInConfirmation
 
     public static function sendMagicLinkConfirmationMail(Model $user): void
     {
+        if (EmailSignInUserOptions::mutuallyExclusiveCodeAndMagic()) {
+            self::setEmailCodeEnabledOnProfile($user, false);
+            $user->refresh();
+        }
+
         $plain = Str::random(64);
 
         $user->forceFill([
@@ -81,6 +86,11 @@ final class ProfileEmailSignInConfirmation
 
     public static function sendEmailCodeConfirmationMail(Model $user): void
     {
+        if (EmailSignInUserOptions::mutuallyExclusiveCodeAndMagic()) {
+            self::setMagicLinkEnabledOnProfile($user, false);
+            $user->refresh();
+        }
+
         $plain = Str::random(64);
 
         $user->forceFill([
@@ -130,6 +140,46 @@ final class ProfileEmailSignInConfirmation
             self::codePendingHashColumn() => null,
             self::codePendingExpiresColumn() => null,
         ])->save();
+    }
+
+    /**
+     * Apply profile email-link confirmation for one-time codes (POST interstitial).
+     */
+    public static function completeEmailCodeProfileConfirm(Model $user): void
+    {
+        $attrs = [
+            EmailSignInUserOptions::codeEnabledAttribute() => true,
+            self::codePendingHashColumn() => null,
+            self::codePendingExpiresColumn() => null,
+        ];
+
+        if (EmailSignInUserOptions::mutuallyExclusiveCodeAndMagic()) {
+            $attrs[EmailSignInUserOptions::magicLinkEnabledAttribute()] = false;
+            $attrs[self::magicPendingHashColumn()] = null;
+            $attrs[self::magicPendingExpiresColumn()] = null;
+        }
+
+        $user->forceFill($attrs)->save();
+    }
+
+    /**
+     * Apply profile email-link confirmation for magic links (POST interstitial).
+     */
+    public static function completeMagicLinkProfileConfirm(Model $user): void
+    {
+        $attrs = [
+            EmailSignInUserOptions::magicLinkEnabledAttribute() => true,
+            self::magicPendingHashColumn() => null,
+            self::magicPendingExpiresColumn() => null,
+        ];
+
+        if (EmailSignInUserOptions::mutuallyExclusiveCodeAndMagic()) {
+            $attrs[EmailSignInUserOptions::codeEnabledAttribute()] = false;
+            $attrs[self::codePendingHashColumn()] = null;
+            $attrs[self::codePendingExpiresColumn()] = null;
+        }
+
+        $user->forceFill($attrs)->save();
     }
 
     private static function pendingIsActive(mixed $hash, mixed $expires): bool

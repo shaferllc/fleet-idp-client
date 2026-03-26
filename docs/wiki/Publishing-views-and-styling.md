@@ -6,22 +6,39 @@ For any production satellite (Waypost, Beacon, etc.), you should **publish the v
 
 ## What to publish
 
-Run from your Laravel app root:
+Run from your Laravel app root.
+
+**Recommended for a new satellite** (views + lang + account layout stub in one step):
+
+```bash
+php artisan fleet:idp:install
+```
+
+Use **`--force`** to overwrite after a package upgrade. **`--with-config`** publishes `config/fleet_idp.php`. **`--with-migrations`** copies email-sign-in migrations into `database/migrations` (then set **`FLEET_IDP_EMAIL_SIGN_IN_LOAD_MIGRATIONS=false`**). See [AI assistant: satellite integration](AI-assistant-satellite-integration) for agent-oriented wiring notes.
+
+Granular publish (equivalent to the default install bundle when run together):
 
 ```bash
 php artisan vendor:publish --tag=fleet-idp-views
 php artisan vendor:publish --tag=fleet-idp-lang
 ```
 
+Or the combined tag (same three assets as `fleet:idp:install` without optional flags):
+
+```bash
+php artisan vendor:publish --tag=fleet-idp-satellite
+```
+
 Optional:
 
 ```bash
 php artisan vendor:publish --tag=fleet-idp-config    # only if you want config in config/fleet_idp.php
-php artisan vendor:publish --tag=fleet-idp-account-layout   # starter layout; see below
+php artisan vendor:publish --tag=fleet-idp-account-layout   # starter layout; included in fleet-idp-satellite / fleet:idp:install
 ```
 
 | Tag | Copies to | Purpose |
 |-----|-----------|---------|
+| **`fleet-idp-satellite`** | views + lang + `layouts/fleet-idp-account.blade.php` | Default bundle for new apps (same as **`fleet:idp:install`**). |
 | **`fleet-idp-views`** | `resources/views/vendor/fleet-idp/` | **Required for custom styling.** Prepended to the `fleet-idp` view namespace, so your files override the package. |
 | **`fleet-idp-lang`** | `lang/vendor/fleet-idp/` | Override copy without forking PHP; good for tone and locale. |
 | **`fleet-idp-config`** | `config/fleet_idp.php` | Full config in repo; optional if `.env` is enough. |

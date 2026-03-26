@@ -275,6 +275,13 @@ return [
         'local_magic_link_ttl_minutes' => max(1, (int) env('FLEET_IDP_EMAIL_SIGN_IN_MAGIC_TTL', 30)),
 
         /*
+        | When true, a user may have only one of code or magic link enabled (plus at most one
+        | pending confirmation). Ignored when code and magic share the same user attribute
+        | (legacy single flag). Satellites opt in via config or env.
+        */
+        'mutually_exclusive_code_and_magic' => filter_var(env('FLEET_IDP_EMAIL_SIGN_IN_EXCLUSIVE', false), FILTER_VALIDATE_BOOL),
+
+        /*
         |--------------------------------------------------------------------------
         | Profile: confirm email before enabling code / magic (satellite)
         |--------------------------------------------------------------------------
@@ -314,6 +321,12 @@ return [
             'redirect_route_when_authenticated' => env('FLEET_IDP_PROFILE_CONFIRM_REDIRECT_AUTHED', 'profile'),
 
             'redirect_route_when_guest' => env('FLEET_IDP_PROFILE_CONFIRM_REDIRECT_GUEST', 'login'),
+
+            /*
+             | Blade layout for the GET interstitial (email link → confirm button).
+             | Use your app layout (e.g. layouts.guest) for branding; default is package minimal.
+             */
+            'interstitial_layout' => env('FLEET_IDP_PROFILE_CONFIRM_INTERSTITIAL_LAYOUT', 'fleet-idp::layouts.minimal'),
 
             /*
              | DB columns on user_model. Changing these requires a matching migration in your app.

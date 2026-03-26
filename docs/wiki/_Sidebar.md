@@ -11,6 +11,7 @@
 - [Email code & magic-link login (spec)](Email-code-and-magic-link-login)
 
 ### Operations
+- [AI assistant: satellite integration](AI-assistant-satellite-integration)
 - [Configuration reference](Configuration-reference)
 - [Testing satellites](Testing-satellites)
 - [Troubleshooting](Troubleshooting)

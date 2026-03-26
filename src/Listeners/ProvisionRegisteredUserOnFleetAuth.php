@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Fleet\IdpClient\Listeners;
 
-use Fleet\IdpClient\FleetIdpOAuth;
+use Fleet\IdpClient\Support\FleetProvisioningUserCreate;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Contracts\Events\ShouldHandleEventsAfterCommit;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -41,42 +40,24 @@ class ProvisionRegisteredUserOnFleetAuth implements ShouldHandleEventsAfterCommi
             return;
         }
 
-        $url = config('fleet_idp.provisioning.url');
-        if (! is_string($url) || trim($url) === '') {
-            $base = config('fleet_idp.url');
-            if (! is_string($base) || trim($base) === '') {
-                Log::warning('fleet_idp.provisioning.skipped_missing_fleet_idp_url');
-
-                return;
-            }
-            $url = rtrim($base, '/').'/api/provisioning/users';
+        $result = FleetProvisioningUserCreate::attempt($user, $plain);
+        if ($result['ok']) {
+            return;
         }
 
-        try {
-            $response = Http::withToken($token)
-                ->acceptJson()
-                ->asJson()
-                ->withOptions(FleetIdpOAuth::redirectPreservingPostOptions())
-                ->post($url, [
-                    'name' => $user->getAttribute('name'),
-                    'email' => $user->getAttribute('email'),
-                    'password' => $plain,
-                ]);
-
-            if ($response->successful()) {
-                return;
-            }
-
-            Log::warning('fleet_idp.provisioning.request_failed', [
-                'status' => $response->status(),
+        if ($result['error'] === 'missing_idp_url') {
+            Log::warning('fleet_idp.provisioning.skipped_missing_fleet_idp_url', [
                 'email' => $user->getAttribute('email'),
             ]);
-        } catch (\Throwable $e) {
-            Log::warning('fleet_idp.provisioning.exception', [
-                'message' => $e->getMessage(),
-                'email' => $user->getAttribute('email'),
-            ]);
+
+            return;
         }
+
+        Log::warning('fleet_idp.provisioning.request_failed', [
+            'status' => $result['http_status'],
+            'email' => $user->getAttribute('email'),
+            'error' => $result['error'],
+        ]);
     }
 
     private function takePlainPasswordFromRequest(Request $request): ?string
