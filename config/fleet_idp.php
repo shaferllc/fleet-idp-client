@@ -188,6 +188,12 @@ return [
          */
         'policy_cache_seconds' => max(0, (int) env('FLEET_IDP_SOCIALITE_POLICY_CACHE', 60)),
 
+        /*
+         * Prepend middleware to the web group so each HTTP request resolves the providers
+         * policy early (Octane-safe; disable with FLEET_IDP_SOCIALITE_WARM_POLICY_MIDDLEWARE=false).
+         */
+        'warm_policy_middleware' => filter_var(env('FLEET_IDP_SOCIALITE_WARM_POLICY_MIDDLEWARE', true), FILTER_VALIDATE_BOOL),
+
         'policy_timeout_seconds' => max(1, (int) env('FLEET_IDP_SOCIALITE_POLICY_TIMEOUT', 3)),
 
         'policy_fail_open' => filter_var(env('FLEET_IDP_SOCIALITE_POLICY_FAIL_OPEN', true), FILTER_VALIDATE_BOOL),

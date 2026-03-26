@@ -6,11 +6,13 @@ use Fleet\IdpClient\Console\ConfigureFleetIdpCommand;
 use Fleet\IdpClient\Console\ForgetSocialLoginPolicyCacheCommand;
 use Fleet\IdpClient\Console\InstallFleetSatelliteCommand;
 use Fleet\IdpClient\Contracts\EmailSignInSessionCompleter;
+use Fleet\IdpClient\Http\Middleware\WarmFleetSocialLoginPolicy;
 use Fleet\IdpClient\Listeners\ProvisionRegisteredUserOnFleetAuth;
 use Fleet\IdpClient\Support\DefaultEmailSignInSessionCompleter;
 use Fleet\IdpClient\View\Components\ManagedPasswordNotice;
 use Fleet\IdpClient\View\Components\OAuthButton;
 use Illuminate\Auth\Events\Registered;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
@@ -28,6 +30,8 @@ class FleetIdpServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->normalizeRedirectUri();
+
+        $this->registerWarmSocialLoginPolicyMiddleware();
 
         Event::listen(Registered::class, ProvisionRegisteredUserOnFleetAuth::class);
 
@@ -133,5 +137,19 @@ class FleetIdpServiceProvider extends ServiceProvider
         }
 
         $config->set('fleet_idp.redirect_uri', null);
+    }
+
+    /**
+     * Run {@see FleetSocialLoginPolicy::snapshot()} early on each web request (web middleware group).
+     */
+    protected function registerWarmSocialLoginPolicyMiddleware(): void
+    {
+        $this->app->booted(function (): void {
+            if (! filter_var(config('fleet_idp.socialite.warm_policy_middleware', true), FILTER_VALIDATE_BOOL)) {
+                return;
+            }
+
+            $this->app->make(Router::class)->prependMiddlewareToGroup('web', WarmFleetSocialLoginPolicy::class);
+        });
     }
 }
