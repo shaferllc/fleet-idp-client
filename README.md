@@ -98,7 +98,40 @@ Optional publish:
 ```bash
 php artisan vendor:publish --tag=fleet-idp-config
 php artisan vendor:publish --tag=fleet-idp-lang
+php artisan vendor:publish --tag=fleet-idp-views
 ```
+
+### OAuth sign-in button (Blade component)
+
+Use **`x-fleet-idp::oauth-button`** for a styled link to your OAuth redirect URL. It renders **nothing** unless `FleetIdpOAuth::isConfigured()` is true.
+
+| Prop | Default | Description |
+|------|---------|-------------|
+| `href` | (required) | Full URL or `route(...)` to start the OAuth flow |
+| `variant` | `waypost` | Which packaged markup/CSS to use |
+
+Built-in variants:
+
+| `variant` | Intended app | Notes |
+|-----------|----------------|-------|
+| `waypost` | Waypost | Sage/cream Tailwind classes (`bg-sage`, etc.) |
+| `console` | Fleet Console | `fc-btn-primary` / glass layout classes |
+
+Unknown `variant` values fall back to `waypost`. Customize or add variants by publishing **`fleet-idp-views`**; files under `resources/views/vendor/fleet-idp/` override the package (same path, e.g. `oauth-button/waypost.blade.php`). You can also open a PR to ship another first-party variant.
+
+```blade
+<x-fleet-idp::oauth-button
+    :href="route('oauth.fleet-auth.redirect')"
+    variant="waypost"
+/>
+
+<x-fleet-idp::oauth-button
+    :href="route('console.login', ['sso' => '1'])"
+    variant="console"
+/>
+```
+
+Labels use `fleet-idp::oauth.*` translations (`continue_with_fleet`, `sign_in_with_fleet_account`); publish `fleet-idp-lang` to override.
 
 ## Programmatic API
 
@@ -108,7 +141,7 @@ php artisan vendor:publish --tag=fleet-idp-lang
 
 ## Views and UI (how to implement in your app)
 
-The package **does not ship Blade views**. You keep full control of markup and design. Wire **routes**, a small **controller**, and your **templates**:
+Ships an optional **`x-fleet-idp::oauth-button`** (see above). You still own **routes**, **controllers**, and any layout beyond that button.
 
 ### 1. Routes (guest)
 
@@ -137,7 +170,7 @@ Reference implementations:
 
 ### 3. Views / Livewire
 
-- **OAuth button:** render only when `FleetIdpOAuth::isConfigured()` — e.g. a link to your **redirect** route (Waypost: `route('oauth.fleet-auth.redirect')`).
+- **OAuth button:** use **`x-fleet-idp::oauth-button`** with `:href` and `variant` (see above); it no-ops when the IdP is not configured.
 - **Password grant:** in your login action, if `FleetIdpPasswordGrant::isConfigured()`, call `FleetIdpPasswordGrant::attempt($email, $password)` before falling back to local `Auth::attempt`.
 - **Copy / layout:** optional hints when IdP is configured (Waypost Volt login checks `FleetIdpPasswordGrant::isConfigured()` and `FleetIdpOAuth::isConfigured()` for helper text).
 

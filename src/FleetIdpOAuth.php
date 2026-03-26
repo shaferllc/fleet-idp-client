@@ -31,6 +31,14 @@ class FleetIdpOAuth
     }
 
     /**
+     * Callback URL registered on the IdP client and sent on authorize + token exchange.
+     */
+    public static function redirectUri(): string
+    {
+        return rtrim((string) config('fleet_idp.redirect_uri'), '/');
+    }
+
+    /**
      * Validated Fleet Auth base URL (scheme + host, optional path prefix), never a trailing /oauth/… endpoint.
      */
     public static function requireIdpRootUrl(): string
@@ -72,7 +80,7 @@ class FleetIdpOAuth
 
         $query = http_build_query([
             'client_id' => config('fleet_idp.client_id'),
-            'redirect_uri' => config('fleet_idp.redirect_uri'),
+            'redirect_uri' => self::redirectUri(),
             'response_type' => 'code',
             'scope' => '',
             'state' => $state,
@@ -97,7 +105,7 @@ class FleetIdpOAuth
                 'grant_type' => 'authorization_code',
                 'client_id' => config('fleet_idp.client_id'),
                 'client_secret' => config('fleet_idp.client_secret'),
-                'redirect_uri' => config('fleet_idp.redirect_uri'),
+                'redirect_uri' => self::redirectUri(),
                 'code' => $code,
             ]);
 

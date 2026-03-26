@@ -1,7 +1,7 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
     "name": "fleet/idp-client",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Laravel client for Fleet central auth: Passport OAuth, optional password grant, Eloquent user sync.",
     "type": "library",
     "license": "MIT",

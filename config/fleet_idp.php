@@ -18,14 +18,16 @@ return [
     'client_secret' => env('FLEET_IDP_CLIENT_SECRET', ''),
 
     /*
-    | Default matches Waypost-style callback. Override with FLEET_IDP_REDIRECT_URI
-    | (e.g. Fleet Console: {APP_URL}/auth/callback).
+    | OAuth redirect URI sent to Fleet Auth. Must exactly match a value in the IdP
+    | client's redirect_uris (see fleet-auth FLEET_IDP_REDIRECT_WAYPOST / _FLEET_CONSOLE).
+    |
+    | Leave FLEET_IDP_REDIRECT_URI unset to derive: rtrim(APP_URL) + redirect_path.
+    | Fleet Console: set FLEET_IDP_REDIRECT_PATH=/auth/callback (or set full FLEET_IDP_REDIRECT_URI).
     */
 
-    'redirect_uri' => env(
-        'FLEET_IDP_REDIRECT_URI',
-        rtrim((string) env('APP_URL', 'http://localhost'), '/').'/oauth/fleet-auth/callback'
-    ),
+    'redirect_uri' => env('FLEET_IDP_REDIRECT_URI'),
+
+    'redirect_path' => env('FLEET_IDP_REDIRECT_PATH', '/oauth/fleet-auth/callback'),
 
     /*
     | Password grant client (optional). Requires fleet_idp.user_model for sync.
