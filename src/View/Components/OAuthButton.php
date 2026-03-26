@@ -4,18 +4,34 @@ namespace Fleet\IdpClient\View\Components;
 
 use Fleet\IdpClient\FleetIdpOAuth;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Route;
 use Illuminate\View\Component;
 
 class OAuthButton extends Component
 {
     public function __construct(
-        public string $href,
+        public ?string $href = null,
         public string $variant = 'waypost',
     ) {}
 
+    public function resolvedHref(): string
+    {
+        if ($this->href !== null && trim($this->href) !== '') {
+            return trim($this->href);
+        }
+
+        $name = (string) config('fleet_idp.web.route_names.redirect', 'fleet-idp.oauth.redirect');
+
+        if (! Route::has($name)) {
+            return '';
+        }
+
+        return route($name, absolute: false);
+    }
+
     public function shouldRender(): bool
     {
-        return FleetIdpOAuth::isConfigured() && trim($this->href) !== '';
+        return FleetIdpOAuth::isConfigured() && $this->resolvedHref() !== '';
     }
 
     public function render(): View
@@ -26,6 +42,6 @@ class OAuthButton extends Component
 
         $view = view()->exists($candidate) ? $candidate : 'fleet-idp::oauth-button.waypost';
 
-        return view($view);
+        return view($view, ['href' => $this->resolvedHref()]);
     }
 }
