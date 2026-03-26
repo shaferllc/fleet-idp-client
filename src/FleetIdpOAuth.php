@@ -1,0 +1,149 @@
+<?php
+
+namespace Fleet\IdpClient;
+
+use Illuminate\Http\Client\Response;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+use RuntimeException;
+
+class FleetIdpOAuth
+{
+    public static function isConfigured(): bool
+    {
+        $url = config('fleet_idp.url');
+        $id = config('fleet_idp.client_id');
+        $secret = config('fleet_idp.client_secret');
+
+        if (! is_string($url) || $url === ''
+            || ! is_string($id) || $id === ''
+            || ! is_string($secret) || $secret === '') {
+            return false;
+        }
+
+        try {
+            self::requireIdpRootUrl();
+        } catch (RuntimeException) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Validated Fleet Auth base URL (scheme + host, optional path prefix), never a trailing /oauth/… endpoint.
+     */
+    public static function requireIdpRootUrl(): string
+    {
+        $raw = config('fleet_idp.url');
+        $base = rtrim((string) $raw, '/');
+        if ($base === '') {
+            throw new RuntimeException('FLEET_IDP_URL is empty.');
+        }
+
+        if (! filter_var($base, FILTER_VALIDATE_URL) || ! Str::startsWith(Str::lower($base), ['http://', 'https://'])) {
+            throw new RuntimeException(
+                'FLEET_IDP_URL must be a full URL to the Fleet Auth app (e.g. https://fleet-auth.test), not a relative path. Current value: '.json_encode($raw)
+            );
+        }
+
+        $path = parse_url($base, PHP_URL_PATH);
+        $path = is_string($path) ? rtrim($path, '/') : '';
+        if (str_ends_with($path, '/oauth/fleet-auth/callback')
+            || str_ends_with($path, '/oauth/authorize')
+            || str_ends_with($path, '/auth/callback')) {
+            throw new RuntimeException(
+                'FLEET_IDP_URL must be only the Fleet Auth server root (e.g. https://fleet-auth.test). You pasted this app\'s OAuth callback URL — put that in APP_URL and FLEET_IDP_REDIRECT_URI instead.'
+            );
+        }
+
+        return $base;
+    }
+
+    public static function authorizationRedirectUrl(): string
+    {
+        if (! self::isConfigured()) {
+            throw new RuntimeException('Fleet IdP OAuth is not configured.');
+        }
+
+        $state = Str::random(40);
+        $stateKey = (string) config('fleet_idp.session_oauth_state_key');
+        session([$stateKey => $state]);
+
+        $query = http_build_query([
+            'client_id' => config('fleet_idp.client_id'),
+            'redirect_uri' => config('fleet_idp.redirect_uri'),
+            'response_type' => 'code',
+            'scope' => '',
+            'state' => $state,
+        ]);
+
+        return self::requireIdpRootUrl().'/oauth/authorize?'.$query;
+    }
+
+    /**
+     * @return array{access_token: string, token_type: string, expires_in?: int}
+     */
+    public static function exchangeCode(string $code): array
+    {
+        if (! self::isConfigured()) {
+            throw new RuntimeException('Fleet IdP OAuth is not configured.');
+        }
+
+        /** @var Response $response */
+        $response = Http::asForm()
+            ->acceptJson()
+            ->post(self::requireIdpRootUrl().'/oauth/token', [
+                'grant_type' => 'authorization_code',
+                'client_id' => config('fleet_idp.client_id'),
+                'client_secret' => config('fleet_idp.client_secret'),
+                'redirect_uri' => config('fleet_idp.redirect_uri'),
+                'code' => $code,
+            ]);
+
+        if (! $response->successful()) {
+            throw new RuntimeException('OAuth token exchange failed: '.$response->body());
+        }
+
+        /** @var array{access_token: string, token_type: string, expires_in?: int} $data */
+        $data = $response->json();
+
+        return $data;
+    }
+
+    /**
+     * @return array{id: int|string, name: string, email: string}
+     */
+    public static function fetchUser(string $accessToken): array
+    {
+        if (! self::isConfigured()) {
+            throw new RuntimeException('Fleet IdP OAuth is not configured.');
+        }
+
+        return self::fetchUserWithToken($accessToken);
+    }
+
+    /**
+     * Load the IdP user profile using only FLEET_IDP_URL (for password grant after token issue).
+     *
+     * @return array{id: int|string, name?: string|null, email?: string|null}
+     */
+    public static function fetchUserWithToken(string $accessToken): array
+    {
+        $base = self::requireIdpRootUrl();
+
+        /** @var Response $response */
+        $response = Http::withToken($accessToken)
+            ->acceptJson()
+            ->get($base.'/api/user');
+
+        if (! $response->successful()) {
+            throw new RuntimeException('Failed to load IdP user: '.$response->body());
+        }
+
+        /** @var array{id: int|string, name?: string|null, email?: string|null} $data */
+        $data = $response->json();
+
+        return $data;
+    }
+}
