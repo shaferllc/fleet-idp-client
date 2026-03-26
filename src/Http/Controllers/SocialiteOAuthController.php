@@ -6,7 +6,6 @@ namespace Fleet\IdpClient\Http\Controllers;
 
 use Fleet\IdpClient\Services\FleetSocialiteUserProvisioner;
 use Fleet\IdpClient\Services\FleetSocialLoginPolicy;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controller;

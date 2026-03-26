@@ -125,6 +125,19 @@ If the API omits a secret (for example **`--no-rotate`** and the IdP keeps an ex
 
 **`FLEET_AUTH_PROVISIONING_URL`** is not set by the command; leave it unset to use the default **`{FLEET_IDP_URL}/api/provisioning/users`** (see `config/fleet_idp.php` → `provisioning.url`).
 
+## GitHub / Google (Socialite)
+
+The package registers **`GET oauth/{provider}`** and **`oauth/{provider}/callback`** (GitHub + Google) when **`FLEET_IDP_SOCIALITE_ENABLED`** is true. Configure **`services.github`** and **`services.google`** in your app as usual (`GITHUB_*` / `GOOGLE_*` in `.env`).
+
+Use **`x-fleet-idp::social-login-buttons`** (prop **`variant`**: `waypost` or `console`) next to your email form. It includes the Fleet OAuth button when configured, plus GitHub/Google when:
+
+1. The provider has client id + secret in `config/services.php`, and  
+2. Fleet Auth **`GET /api/social-login/providers`** returns **`true`** for that key (cached; see `fleet_idp.socialite.policy_cache_seconds`).
+
+Toggle providers in **Fleet Auth → Admin → Integrations → Client app social login**. Env defaults: **`FLEET_AUTH_SOCIAL_GITHUB`**, **`FLEET_AUTH_SOCIAL_GOOGLE`**.
+
+If **`FLEET_IDP_URL`** is empty, policy checks are skipped (only local `services.*` matter). Set **`FLEET_IDP_SOCIALITE_POLICY_FAIL_OPEN=false`** to hide social buttons when the IdP cannot be reached.
+
 ## Configuration
 
 Config is merged from the package (`config/fleet_idp.php`). Override with `.env` or publish:
