@@ -43,8 +43,9 @@ class FleetIdpServiceProvider extends ServiceProvider
     }
 
     /**
-     * When FLEET_IDP_REDIRECT_URI is omitted, build redirect_uri from config('app.url')
-     * and redirect_path so it tracks APP_URL (avoids localhost vs *.test mismatches).
+     * Normalize an explicit FLEET_IDP_REDIRECT_URI. When it is omitted, leave
+     * fleet_idp.redirect_uri empty so {@see FleetIdpOAuth::redirectUri()} can derive
+     * the callback from the current HTTP request (avoids localhost vs *.test).
      */
     protected function normalizeRedirectUri(): void
     {
@@ -57,10 +58,6 @@ class FleetIdpServiceProvider extends ServiceProvider
             return;
         }
 
-        $path = (string) $config->get('fleet_idp.redirect_path', '/oauth/fleet-auth/callback');
-        $path = '/'.ltrim(trim($path), '/');
-        $base = rtrim((string) $config->get('app.url'), '/');
-
-        $config->set('fleet_idp.redirect_uri', $base.$path);
+        $config->set('fleet_idp.redirect_uri', null);
     }
 }

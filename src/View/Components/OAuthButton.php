@@ -9,6 +9,9 @@ use Illuminate\View\Component;
 
 class OAuthButton extends Component
 {
+    /** @var list<string> Nested Livewire views merge a parent attribute bag that can set href="". */
+    protected $except = ['href'];
+
     public function __construct(
         public ?string $href = null,
         public string $variant = 'waypost',
@@ -16,8 +19,8 @@ class OAuthButton extends Component
 
     public function resolvedHref(): string
     {
-        if ($this->href !== null && trim($this->href) !== '') {
-            return trim($this->href);
+        if (filled($this->href)) {
+            return trim((string) $this->href);
         }
 
         $name = (string) config('fleet_idp.web.route_names.redirect', 'fleet-idp.oauth.redirect');
@@ -26,7 +29,8 @@ class OAuthButton extends Component
             return '';
         }
 
-        return route($name, absolute: false);
+        // Absolute URL avoids wrong host when the browser URL differs from APP_URL (session + redirect_uri must align).
+        return route($name, absolute: true);
     }
 
     public function shouldRender(): bool

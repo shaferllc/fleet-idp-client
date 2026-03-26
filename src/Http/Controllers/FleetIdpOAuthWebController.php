@@ -11,6 +11,10 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\RedirectResponse as SymfonyRedirect;
 use Throwable;
 
@@ -19,16 +23,46 @@ class FleetIdpOAuthWebController extends Controller
     public function redirect(Request $request): RedirectResponse|SymfonyRedirect
     {
         if (! FleetIdpOAuth::isConfigured()) {
-            abort(404);
+            return $this->oauthFailureRedirect(trans('fleet-idp::oauth.not_configured'));
         }
 
-        return redirect()->away(FleetIdpOAuth::authorizationRedirectUrl());
+        try {
+            $url = FleetIdpOAuth::authorizationRedirectUrl();
+        } catch (Throwable $e) {
+            Log::warning('fleet_idp.oauth.start_failed', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return $this->oauthFailureRedirect(trans('fleet-idp::oauth.start_failed'));
+        }
+
+        return redirect()->away($url);
+    }
+
+    public function failure(Request $request): View
+    {
+        $sessionKey = (string) config('fleet_idp.web.eloquent.oauth_error_session_key', 'oauth_error');
+        $message = $request->session()->pull($sessionKey);
+
+        if (! is_string($message) || trim($message) === '') {
+            $message = trans('fleet-idp::oauth.failure_generic');
+        }
+
+        $tryAgainRoute = (string) config('fleet_idp.web.eloquent.try_again_route', 'login');
+        $tryAgainUrl = Route::has($tryAgainRoute)
+            ? route($tryAgainRoute, absolute: true)
+            : url('/');
+
+        return view('fleet-idp::oauth-failure', [
+            'message' => $message,
+            'tryAgainUrl' => $tryAgainUrl,
+        ]);
     }
 
     public function callback(Request $request): RedirectResponse
     {
         if (! FleetIdpOAuth::isConfigured()) {
-            abort(404);
+            return $this->oauthFailureRedirect(trans('fleet-idp::oauth.not_configured'));
         }
 
         return match ((string) config('fleet_idp.web.mode', 'eloquent')) {
@@ -40,34 +74,55 @@ class FleetIdpOAuthWebController extends Controller
     protected function callbackEloquent(Request $request): RedirectResponse
     {
         if ($request->query('error')) {
-            return $this->eloquentOAuthErrorRedirect(
+            Log::warning('fleet_idp.oauth.idp_error', [
+                'error' => (string) $request->query('error'),
+                'error_description' => (string) $request->query('error_description', ''),
+            ]);
+
+            return $this->oauthFailureRedirect(
                 (string) $request->query('error_description', trans('fleet-idp::oauth.sign_in_cancelled')),
             );
         }
 
-        $request->validate([
-            'code' => ['required', 'string'],
-            'state' => ['required', 'string'],
-        ]);
+        try {
+            $request->validate([
+                'code' => ['required', 'string'],
+                'state' => ['required', 'string'],
+            ]);
+        } catch (ValidationException) {
+            return $this->oauthFailureRedirect(trans('fleet-idp::oauth.callback_missing_params'));
+        }
 
         $stateKey = (string) config('fleet_idp.session_oauth_state_key');
         $expected = $request->session()->pull($stateKey);
         if (! is_string($expected) || ! hash_equals($expected, (string) $request->query('state'))) {
-            return $this->eloquentOAuthErrorRedirect(trans('fleet-idp::oauth.invalid_state'));
+            Log::warning('fleet_idp.oauth.invalid_state', [
+                'had_session_state' => is_string($expected),
+            ]);
+
+            return $this->oauthFailureRedirect(trans('fleet-idp::oauth.invalid_state'));
         }
 
         try {
             $tokens = FleetIdpOAuth::exchangeCode((string) $request->query('code'));
             $remote = FleetIdpOAuth::fetchUser($tokens['access_token']);
-        } catch (Throwable) {
-            return $this->eloquentOAuthErrorRedirect(trans('fleet-idp::oauth.exchange_failed'));
+        } catch (Throwable $e) {
+            Log::warning('fleet_idp.oauth.exchange_failed', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return $this->oauthFailureRedirect(trans('fleet-idp::oauth.exchange_failed'));
         }
 
         $sync = FleetIdpEloquentUserProvisioner::syncFromRemoteUser($remote);
         $userModel = (string) config('fleet_idp.user_model');
 
         if ($sync['error'] !== null || ! $sync['user'] instanceof Model || ! is_a($sync['user'], $userModel, true)) {
-            return $this->eloquentOAuthErrorRedirect(
+            Log::warning('fleet_idp.oauth.user_sync_failed', [
+                'error' => $sync['error'],
+            ]);
+
+            return $this->oauthFailureRedirect(
                 is_string($sync['error']) ? $sync['error'] : trans('fleet-idp::oauth.sync_failed'),
             );
         }
@@ -105,10 +160,15 @@ class FleetIdpOAuthWebController extends Controller
                 ]);
         }
 
-        $request->validate([
-            'code' => ['required', 'string'],
-            'state' => ['required', 'string'],
-        ]);
+        try {
+            $request->validate([
+                'code' => ['required', 'string'],
+                'state' => ['required', 'string'],
+            ]);
+        } catch (ValidationException) {
+            return redirect()->route($errorRoute)
+                ->withErrors([$errorKey => trans('fleet-idp::oauth.callback_missing_params')]);
+        }
 
         $stateKey = (string) config('fleet_idp.session_oauth_state_key');
         $expected = $request->session()->pull($stateKey);
@@ -141,10 +201,26 @@ class FleetIdpOAuthWebController extends Controller
         return redirect()->intended(route($postLogin, absolute: false));
     }
 
-    protected function eloquentOAuthErrorRedirect(string $message): RedirectResponse
+    protected function oauthFailureRedirect(string $message): RedirectResponse
     {
-        $route = (string) config('fleet_idp.web.eloquent.oauth_error_route', 'login');
+        Log::notice('fleet_idp.oauth.client_redirect_error', ['message' => $message]);
+
+        if ((string) config('fleet_idp.web.mode', 'eloquent') === 'session') {
+            $errorRoute = (string) config('fleet_idp.web.session.error_route', 'console.login');
+            $errorKey = (string) config('fleet_idp.web.session.error_validation_key', 'password');
+
+            return redirect()->route($errorRoute)
+                ->withErrors([$errorKey => $message]);
+        }
+
+        $route = (string) config('fleet_idp.web.eloquent.oauth_error_route', 'fleet-idp.oauth.failure');
         $sessionKey = (string) config('fleet_idp.web.eloquent.oauth_error_session_key', 'oauth_error');
+
+        if (! Route::has($route)) {
+            $fallback = Route::has('login') ? route('login', absolute: true) : url('/');
+
+            return redirect()->to($fallback)->with($sessionKey, $message);
+        }
 
         return redirect()->route($route)->with($sessionKey, $message);
     }

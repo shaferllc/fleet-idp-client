@@ -19,8 +19,11 @@ $callbackPath = $normalize((string) config('fleet_idp.redirect_path', '/oauth/fl
 
 $redirectName = (string) config('fleet_idp.web.route_names.redirect', 'fleet-idp.oauth.redirect');
 $callbackName = (string) config('fleet_idp.web.route_names.callback', 'fleet-idp.oauth.callback');
+$failurePath = $normalize((string) config('fleet_idp.web.failure_path', '/oauth/fleet-auth/failure'));
+$failureName = (string) config('fleet_idp.web.route_names.failure', 'fleet-idp.oauth.failure');
 
-Route::middleware($middleware)->group(static function () use ($startPath, $callbackPath, $redirectName, $callbackName): void {
+Route::middleware($middleware)->group(static function () use ($startPath, $callbackPath, $failurePath, $redirectName, $callbackName, $failureName): void {
     Route::get($startPath, [FleetIdpOAuthWebController::class, 'redirect'])->name($redirectName);
     Route::get($callbackPath, [FleetIdpOAuthWebController::class, 'callback'])->name($callbackName);
+    Route::get($failurePath, [FleetIdpOAuthWebController::class, 'failure'])->name($failureName);
 });

@@ -35,7 +35,31 @@ class FleetIdpOAuth
      */
     public static function redirectUri(): string
     {
-        return rtrim((string) config('fleet_idp.redirect_uri'), '/');
+        $configured = config('fleet_idp.redirect_uri');
+        if (is_string($configured) && trim($configured) !== '') {
+            return rtrim(trim($configured), '/');
+        }
+
+        $path = (string) config('fleet_idp.redirect_path', '/oauth/fleet-auth/callback');
+        $path = '/'.ltrim(trim($path), '/');
+
+        return rtrim(self::implicitOAuthApplicationRoot(), '/').$path;
+    }
+
+    /**
+     * Root URL for this app when redirect_uri is not set explicitly (no FLEET_IDP_REDIRECT_URI).
+     * Uses the incoming request so https://waypost.test matches Passport even if APP_URL is localhost.
+     */
+    protected static function implicitOAuthApplicationRoot(): string
+    {
+        if (app()->bound('request')) {
+            $request = request();
+            if ($request !== null && $request->getHost() !== '') {
+                return $request->getSchemeAndHttpHost();
+            }
+        }
+
+        return rtrim((string) config('app.url'), '/');
     }
 
     /**
@@ -62,6 +86,13 @@ class FleetIdpOAuth
             || str_ends_with($path, '/auth/callback')) {
             throw new RuntimeException(
                 'FLEET_IDP_URL must be only the Fleet Auth server root (e.g. https://fleet-auth.test). You pasted this app\'s OAuth callback URL — put that in APP_URL and FLEET_IDP_REDIRECT_URI instead.'
+            );
+        }
+
+        $appBase = rtrim((string) config('app.url'), '/');
+        if ($appBase !== '' && $base === $appBase) {
+            throw new RuntimeException(
+                'FLEET_IDP_URL must not equal APP_URL. Point FLEET_IDP_URL at the Fleet Auth (Passport) server, not this application.'
             );
         }
 

@@ -25,7 +25,7 @@ The package is published on our **Packeton** Composer mirror. Add the repository
     }
 ],
 "require": {
-    "fleet/idp-client": "^0.2"
+    "fleet/idp-client": "^0.3"
 }
 ```
 
@@ -62,11 +62,11 @@ If you keep this repo next to an app, add a **path** repository **after** the Co
     }
 ],
 "require": {
-    "fleet/idp-client": "^0.2"
+    "fleet/idp-client": "^0.3"
 }
 ```
 
-If you **only** install from `packages.shafer.llc` (no path repo), omit `canonical: false` once the registry publishes a **tagged** release that satisfies `^0.2`.
+If you **only** install from `packages.shafer.llc` (no path repo), omit `canonical: false` once the registry publishes a **tagged** release that satisfies `^0.3`.
 
 ### GitHub (VCS) fallback
 
@@ -75,7 +75,7 @@ If you **only** install from `packages.shafer.llc` (no path repo), omit `canonic
     { "type": "vcs", "url": "https://github.com/shaferllc/fleet-idp-client" }
 ],
 "require": {
-    "fleet/idp-client": "^0.2"
+    "fleet/idp-client": "^0.3"
 }
 ```
 
@@ -105,7 +105,7 @@ php artisan vendor:publish --tag=fleet-idp-views
 |----------|---------|
 | `FLEET_IDP_URL` | Fleet Auth **root** only. Never your app’s callback URL. |
 | `FLEET_IDP_CLIENT_ID` / `FLEET_IDP_CLIENT_SECRET` | Authorization-code OAuth client |
-| `FLEET_IDP_REDIRECT_URI` | Full callback URL; if unset, package uses `rtrim(APP_URL) + FLEET_IDP_REDIRECT_PATH` |
+| `FLEET_IDP_REDIRECT_URI` | Full callback URL; if unset, uses **current request** scheme + host + `FLEET_IDP_REDIRECT_PATH` (falls back to `APP_URL` when no HTTP request, e.g. Artisan) |
 | `FLEET_IDP_REDIRECT_PATH` | Callback **path** only (default `/oauth/fleet-auth/callback`). Fleet Console: `/auth/callback`. |
 | `FLEET_IDP_PASSWORD_*` | Optional password grant |
 | `FLEET_IDP_USER_MODEL` | Eloquent user class |
@@ -121,12 +121,15 @@ php artisan vendor:publish --tag=fleet-idp-views
 | `FLEET_IDP_WEB_MIDDLEWARE` | `web` | Comma-separated middleware (Fleet Console: `web,fleet.trusted_ip`) |
 | `FLEET_IDP_ROUTE_OAUTH_REDIRECT` | `fleet-idp.oauth.redirect` | Route name for start |
 | `FLEET_IDP_ROUTE_OAUTH_CALLBACK` | `fleet-idp.oauth.callback` | Route name for callback |
+| `FLEET_IDP_OAUTH_FAILURE_PATH` | `/oauth/fleet-auth/failure` | Dedicated OAuth failure page path |
+| `FLEET_IDP_ROUTE_OAUTH_FAILURE` | `fleet-idp.oauth.failure` | Route name for failure page |
 
 **Eloquent mode** (typical Breeze app):
 
 | Variable | Default |
 |----------|---------|
-| `FLEET_IDP_OAUTH_ERROR_ROUTE` | `login` |
+| `FLEET_IDP_OAUTH_ERROR_ROUTE` | `fleet-idp.oauth.failure` (package page; set to `login` to flash on login only) |
+| `FLEET_IDP_TRY_AGAIN_ROUTE` | `login` | “Back to log in” target on the failure page |
 | `FLEET_IDP_OAUTH_ERROR_SESSION_KEY` | `oauth_error` |
 | `FLEET_IDP_POST_LOGIN_ROUTE` | `dashboard` |
 | `FLEET_IDP_TWO_FACTOR_ROUTE` | `two-factor.challenge` |
@@ -143,7 +146,7 @@ php artisan vendor:publish --tag=fleet-idp-views
 
 ## OAuth sign-in button (Blade)
 
-**`x-fleet-idp::oauth-button`** links to the OAuth start route (or a custom `href`). Renders nothing if the IdP is not configured or the route is missing.
+**`x-fleet-idp::oauth-button`** links to the OAuth start route (or a custom `href`). Renders nothing if the IdP is not configured or the route is missing. The `href` constructor argument is excluded from Blade `data()` merges so **Livewire/Volt** parent attribute bags cannot overwrite the generated URL with an empty `href`.
 
 | Prop | Default | Description |
 |------|---------|-------------|

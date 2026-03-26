@@ -21,8 +21,9 @@ return [
     | OAuth redirect URI sent to Fleet Auth. Must exactly match a value in the IdP
     | client's redirect_uris (see fleet-auth FLEET_IDP_REDIRECT_WAYPOST / _FLEET_CONSOLE).
     |
-    | Leave FLEET_IDP_REDIRECT_URI unset to derive: rtrim(APP_URL) + redirect_path.
-    | Fleet Console: set FLEET_IDP_REDIRECT_PATH=/auth/callback (or set full FLEET_IDP_REDIRECT_URI).
+    | Leave FLEET_IDP_REDIRECT_URI unset to derive redirect_path from the current HTTP
+    | request (scheme + host), or from APP_URL when there is no request (e.g. Artisan).
+    | Set FLEET_IDP_REDIRECT_URI when behind a proxy or you need a fixed public URL.
     */
 
     'redirect_uri' => env('FLEET_IDP_REDIRECT_URI'),
@@ -78,13 +79,17 @@ return [
 
         'start_path' => env('FLEET_IDP_OAUTH_START_PATH', '/oauth/fleet-auth'),
 
+        'failure_path' => env('FLEET_IDP_OAUTH_FAILURE_PATH', '/oauth/fleet-auth/failure'),
+
         'route_names' => [
             'redirect' => env('FLEET_IDP_ROUTE_OAUTH_REDIRECT', 'fleet-idp.oauth.redirect'),
             'callback' => env('FLEET_IDP_ROUTE_OAUTH_CALLBACK', 'fleet-idp.oauth.callback'),
+            'failure' => env('FLEET_IDP_ROUTE_OAUTH_FAILURE', 'fleet-idp.oauth.failure'),
         ],
 
         'eloquent' => [
-            'oauth_error_route' => env('FLEET_IDP_OAUTH_ERROR_ROUTE', 'login'),
+            'oauth_error_route' => env('FLEET_IDP_OAUTH_ERROR_ROUTE', 'fleet-idp.oauth.failure'),
+            'try_again_route' => env('FLEET_IDP_TRY_AGAIN_ROUTE', 'login'),
             'oauth_error_session_key' => env('FLEET_IDP_OAUTH_ERROR_SESSION_KEY', 'oauth_error'),
             'post_login_route' => env('FLEET_IDP_POST_LOGIN_ROUTE', 'dashboard'),
             'two_factor_route' => env('FLEET_IDP_TWO_FACTOR_ROUTE', 'two-factor.challenge'),
