@@ -2,6 +2,8 @@
 
 namespace Fleet\IdpClient;
 
+use GuzzleHttp\Psr7\Uri;
+use GuzzleHttp\Psr7\UriResolver;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -182,9 +184,7 @@ class FleetIdpOAuth
         $base = self::requireIdpRootUrl();
 
         /** @var Response $response */
-        $response = Http::withToken($accessToken)
-            ->acceptJson()
-            ->get($base.'/api/user');
+        $response = self::getJsonWithBearerFollowingRedirects($base.'/api/user', $accessToken);
 
         if (! $response->successful()) {
             throw new RuntimeException(self::fleetAuthHttpErrorSummary($response, 'Fleet Auth profile'));
@@ -210,6 +210,49 @@ class FleetIdpOAuth
                 'protocols' => ['http', 'https'],
             ],
         ];
+    }
+
+    /**
+     * GET JSON with Bearer auth, following redirects without Guzzle's automatic redirect handler.
+     *
+     * Guzzle removes Authorization on "cross-origin" redirects; http→https on the same host counts,
+     * which yields 401 Unauthenticated on Passport's GET /api/user.
+     *
+     * @see \GuzzleHttp\RedirectMiddleware
+     */
+    protected static function getJsonWithBearerFollowingRedirects(string $url, string $bearerToken): Response
+    {
+        $current = $url;
+        $max = 5;
+        $response = null;
+
+        for ($i = 0; $i < $max; $i++) {
+            /** @var Response $response */
+            $response = Http::withToken($bearerToken)
+                ->acceptJson()
+                ->withOptions(['allow_redirects' => false])
+                ->get($current);
+
+            if ($response->successful()) {
+                return $response;
+            }
+
+            $status = $response->status();
+            if ($status >= 300 && $status < 400) {
+                $location = $response->header('Location');
+                if (! is_string($location) || trim($location) === '') {
+                    return $response;
+                }
+
+                $current = (string) UriResolver::resolve(new Uri($current), new Uri(trim($location)));
+
+                continue;
+            }
+
+            return $response;
+        }
+
+        throw new RuntimeException('Fleet Auth profile: too many HTTP redirects when calling /api/user.');
     }
 
     /**
