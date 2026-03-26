@@ -8,6 +8,8 @@ Composer package **`shaferllc/fleet-idp-client`** (PHP namespace `Fleet\IdpClien
 
 **Identity provider:** [github.com/shaferllc/fleet-auth](https://github.com/shaferllc/fleet-auth)
 
+**Operator docs:** [docs/wiki](docs/wiki/README.md) (Fleet Social Login / GitHub Wiki mirror — if the [Wiki tab](https://github.com/shaferllc/fleet-idp-client/wiki) is empty, enable **Wikis** under repo Settings and push from `docs/wiki/`; see [Home](docs/wiki/Home.md)).
+
 ### Namespace change (from `fleet/idp-client`)
 
 The **`fleet`** vendor on Packagist.org is already taken by another maintainer, so this library is published as **`shaferllc/fleet-idp-client`**. If you previously required **`fleet/idp-client`** (e.g. from a private mirror), replace it in **`composer.json`**:
