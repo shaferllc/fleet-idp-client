@@ -29,6 +29,8 @@ class FleetIdpServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        FleetIdpCustomization::apply($this->app->make('config'));
+
         $this->normalizeRedirectUri();
 
         $this->registerWarmSocialLoginPolicyMiddleware();

@@ -102,7 +102,7 @@ class SocialiteOAuthController extends Controller
 
     private function providerIsUsable(string $provider): bool
     {
-        if (! (bool) config('fleet_idp.socialite.enabled', true)) {
+        if (! filter_var(config('fleet_idp.socialite.enabled', false), FILTER_VALIDATE_BOOL)) {
             return false;
         }
 

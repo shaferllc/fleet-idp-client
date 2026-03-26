@@ -148,7 +148,7 @@ final class FleetSocialLoginPolicy
 
     private static function packageEnabled(): bool
     {
-        return (bool) config('fleet_idp.socialite.enabled', true);
+        return filter_var(config('fleet_idp.socialite.enabled', false), FILTER_VALIDATE_BOOL);
     }
 
     /**
@@ -168,15 +168,15 @@ final class FleetSocialLoginPolicy
     }
 
     /**
-     * No IdP URL: do not block social buttons or satellite-only policy (fail-open for github/google).
+     * No IdP URL: conservative defaults (no GitHub/Google until GET /api/social-login/providers can run).
      *
      * @return PolicySnapshot
      */
     private static function localDevSnapshot(): array
     {
         return [
-            'github' => true,
-            'google' => true,
+            'github' => false,
+            'google' => false,
             'allow_two_factor' => true,
             'require_two_factor' => false,
             'require_email_verification' => false,
@@ -211,7 +211,7 @@ final class FleetSocialLoginPolicy
      */
     private static function fetchOrFallback(string $url): array
     {
-        $failOpen = (bool) config('fleet_idp.socialite.policy_fail_open', true);
+        $failOpen = filter_var(config('fleet_idp.socialite.policy_fail_open', false), FILTER_VALIDATE_BOOL);
 
         try {
             $response = Http::timeout((int) config('fleet_idp.socialite.policy_timeout_seconds', 3))
@@ -240,7 +240,7 @@ final class FleetSocialLoginPolicy
         return [
             'github' => $failOpen,
             'google' => $failOpen,
-            'allow_two_factor' => $failOpen,
+            'allow_two_factor' => true,
             'require_two_factor' => false,
             'require_email_verification' => false,
             'email_login_code' => false,
@@ -254,7 +254,7 @@ final class FleetSocialLoginPolicy
      */
     private static function normalizePolicy(array $data): array
     {
-        $failOpen = (bool) config('fleet_idp.socialite.policy_fail_open', true);
+        $failOpen = filter_var(config('fleet_idp.socialite.policy_fail_open', false), FILTER_VALIDATE_BOOL);
 
         $out = [
             'github' => self::coerceBool($data['github'] ?? null, $failOpen),

@@ -35,7 +35,9 @@ class OAuthButton extends Component
 
     public function shouldRender(): bool
     {
-        return FleetIdpOAuth::isConfigured() && $this->resolvedHref() !== '';
+        return SocialLoginButtons::isSocialLoginUiEnabled()
+            && FleetIdpOAuth::isConfigured()
+            && $this->resolvedHref() !== '';
     }
 
     public function render(): View

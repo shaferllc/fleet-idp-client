@@ -202,6 +202,28 @@ php artisan vendor:publish --tag=fleet-idp-account-layout   # included in fleet:
 
 **Treat `fleet-idp-views` as part of your auth surface area** — commit the published files and review diffs when upgrading the package. See [Publishing views and styling](docs/wiki/Publishing-views-and-styling.md).
 
+### PHP overrides (no published config)
+
+Call **`FleetIdpCustomization::configureUsing()`** from your app’s **`register()`** method (not `boot()`), and read or replace values on the **`Illuminate\Contracts\Config\Repository`** (same keys as `config/fleet_idp.php`). This runs after the package merges its defaults and before OAuth routes load.
+
+```php
+use Fleet\IdpClient\FleetIdpCustomization;
+use Illuminate\Contracts\Config\Repository;
+
+public function register(): void
+{
+    FleetIdpCustomization::configureUsing(function (Repository $config): void {
+        $fleet = $config->get('fleet_idp', []);
+        $config->set('fleet_idp', array_replace_recursive($fleet, [
+            'redirect_path' => '/auth/callback',
+            // …
+        ]));
+    });
+}
+```
+
+Prefer **`.env`** when a value is already exposed there; use this hook for app-only defaults or computed values.
+
 ### Core
 
 | Variable | Purpose |

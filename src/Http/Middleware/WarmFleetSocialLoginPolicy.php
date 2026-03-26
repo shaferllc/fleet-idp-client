@@ -6,6 +6,7 @@ namespace Fleet\IdpClient\Http\Middleware;
 
 use Closure;
 use Fleet\IdpClient\Services\FleetSocialLoginPolicy;
+use Fleet\IdpClient\View\Components\SocialLoginButtons;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -22,7 +23,7 @@ final class WarmFleetSocialLoginPolicy
             return $next($request);
         }
 
-        if (! filter_var(config('fleet_idp.socialite.enabled', true), FILTER_VALIDATE_BOOL)) {
+        if (! SocialLoginButtons::isSocialLoginUiEnabled()) {
             return $next($request);
         }
 
