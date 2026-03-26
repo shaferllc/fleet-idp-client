@@ -1,89 +1,72 @@
-# fleet/idp-client
+# Fleet IdP client for Laravel
 
-Laravel package: OAuth2 **authorization-code** flow + optional Passport **password grant** against **Fleet Auth**, Eloquent user provisioning, **registered web routes**, and optional **Blade sign-in button** variants.
+Composer package **`shaferllc/fleet-idp-client`** (PHP namespace `Fleet\IdpClient\…`). OAuth2 **authorization-code** flow + optional Passport **password grant** against **Fleet Auth**, Eloquent user provisioning, **registered web routes**, and optional **Blade sign-in button** variants.
 
-**Private registry (install):** [packages.shafer.llc — fleet/idp-client](https://packages.shafer.llc/packages/fleet/idp-client)
+**Packagist:** [packagist.org/packages/shaferllc/fleet-idp-client](https://packagist.org/packages/shaferllc/fleet-idp-client)
 
 **Source:** [github.com/shaferllc/fleet-idp-client](https://github.com/shaferllc/fleet-idp-client)
 
 **Identity provider:** [github.com/shaferllc/fleet-auth](https://github.com/shaferllc/fleet-auth)
+
+### Namespace change (from `fleet/idp-client`)
+
+The **`fleet`** vendor on Packagist.org is already taken by another maintainer, so this library is published as **`shaferllc/fleet-idp-client`**. If you previously required **`fleet/idp-client`** (e.g. from a private mirror), replace it in **`composer.json`**:
+
+```bash
+composer remove fleet/idp-client
+composer require shaferllc/fleet-idp-client:^0.5
+```
+
+The PHP API, config keys, and Artisan command **`fleet:idp:configure`** are unchanged.
 
 ## Requirements
 
 - PHP **8.3+**
 - Laravel **12** or **13** (Illuminate `^12.0|^13.0`)
 
-## Install from packages.shafer.llc
-
-The package is published on our **Packeton** Composer mirror. Add the repository root (not the per-package URL), then require the package:
-
-```json
-"repositories": [
-    {
-        "type": "composer",
-        "url": "https://packages.shafer.llc"
-    }
-],
-"require": {
-    "fleet/idp-client": "^0.4"
-}
-```
-
-Authenticate with the registry (your Packeton username/API token or password — see your account on [packages.shafer.llc](https://packages.shafer.llc)):
+## Install (Packagist)
 
 ```bash
-composer config --global http-basic.packages.shafer.llc YOUR_USERNAME YOUR_TOKEN
-# or project-local: composer config http-basic.packages.shafer.llc YOUR_USERNAME YOUR_TOKEN
+composer require shaferllc/fleet-idp-client:^0.5
 ```
 
-Then:
-
-```bash
-composer update fleet/idp-client
-```
-
-The service provider is **auto-discovered**; no manual `config/app.php` entry.
+No extra `repositories` entry is needed. The Laravel service provider is **auto-discovered**.
 
 ### Deploy follow-up (staging / production)
 
-Treat **[packages.shafer.llc — `fleet/idp-client`](https://packages.shafer.llc/packages/fleet/idp-client)** as the **source of truth** for installs on servers and in CI: **`composer install` / `composer update`** must reach **`https://packages.shafer.llc`** with valid **`http-basic.packages.shafer.llc`** (or **`COMPOSER_AUTH`**) credentials. **Path** and **VCS** repositories are for local development; a deploy pipeline that only has a path checkout will not install this package in production. After each deploy, confirm the build log resolved **`fleet/idp-client`** from the mirror (not a missing symlinked path).
+**`composer install`** on servers should resolve **`shaferllc/fleet-idp-client`** from **Packagist** (default) and download a **dist** zip — no GitHub SSH keys required on the app host if the GitHub repository is **public**.
 
-If installs fail with **`git@github.com: Permission denied (publickey)`**, Composer is using **git source** instead of a **dist** zip. Fix by: making the GitHub repo **public** (Packeton can stay private), configuring **Packeton** to host **dist** archives (with server-side Git credentials), or setting **`COMPOSER_AUTH`** for **github.com** on the deploy host. See your app README (e.g. Waypost **Deploy** troubleshooting) for detail.
+If you still see **`git@github.com: Permission denied`**, you are installing **from source**; prefer **`"preferred-install": "dist"`** (already typical in Laravel apps) and ensure the tag exists on Packagist with a **`dist`** URL.
 
 ### Monorepo / local path (developers)
 
-If you keep this repo next to an app, add a **path** repository **after** the Composer repo and mark the registry as **non-canonical** so Composer can satisfy the constraint from the path checkout when the mirror only exposes `dev-main` (see [repository priority](https://getcomposer.org/repoprio)):
+If this repo sits next to your app, you can satisfy the dependency from a path checkout (see [repository priority](https://getcomposer.org/repoprio)):
 
-```json
-"repositories": [
-    {
-        "type": "composer",
-        "url": "https://packages.shafer.llc",
-        "canonical": false
-    },
-    {
-        "type": "path",
-        "url": "../fleet-idp-client",
-        "options": { "symlink": true }
-    }
-],
-"require": {
-    "fleet/idp-client": "^0.4"
-}
+```bash
+composer config repositories.fleet-idp-client-dev '{"type":"path","url":"../fleet-idp-client","options":{"symlink":true}}'
+composer update shaferllc/fleet-idp-client
 ```
 
-If you **only** install from `packages.shafer.llc` (no path repo), omit `canonical: false` once the registry publishes a **tagged** release that satisfies your constraint (e.g. `^0.4`).
+Remove the repository when you want to match production (`composer config --unset repositories.fleet-idp-client-dev` then `composer update shaferllc/fleet-idp-client`).
 
-### GitHub (VCS) fallback
+### GitHub (VCS) without Packagist
+
+If the package is not on Packagist yet, add:
 
 ```json
 "repositories": [
     { "type": "vcs", "url": "https://github.com/shaferllc/fleet-idp-client" }
 ],
 "require": {
-    "fleet/idp-client": "^0.4"
+    "shaferllc/fleet-idp-client": "^0.5"
 }
 ```
+
+Remove that block once Packagist lists the package (Composer will use Packagist by default).
+
+### Legacy: private Packeton mirror
+
+Older docs referred to **`fleet/idp-client`** on **packages.shafer.llc**. Migrate using the [namespace change](#namespace-change-from-fleetidp-client) steps above and **`shaferllc/fleet-idp-client`** on Packagist instead.
 
 ## Minimal app integration
 
@@ -97,7 +80,7 @@ The package registers **`GET`** OAuth **start** and **callback** routes (see `ro
 
 ## CLI bootstrap (`fleet:idp:configure`)
 
-From **0.4.0**, the package registers an Artisan command that calls Fleet Auth’s **`POST /api/cli/setup`** and merges returned credentials into your app’s **`.env`**.
+From **0.4.0** (Composer package **`shaferllc/fleet-idp-client`** from **0.5.0**), the package registers an Artisan command that calls Fleet Auth’s **`POST /api/cli/setup`** and merges returned credentials into your app’s **`.env`**.
 
 ### Fleet Auth (IdP) prerequisites
 

@@ -11,7 +11,7 @@ return [
     |
     | Bootstrap (package 0.4+): on Fleet Auth set FLEET_AUTH_CLI_SETUP_TOKEN, then run
     | `php artisan fleet:idp:configure` in this app to create Passport clients and merge
-    | secrets into .env. See the package README.
+    | secrets into .env. Composer: shaferllc/fleet-idp-client. See the package README.
     |
     */
 

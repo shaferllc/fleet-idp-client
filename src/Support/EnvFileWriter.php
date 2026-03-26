@@ -64,7 +64,7 @@ class EnvFileWriter
                 if ($out !== [] && end($out) !== '') {
                     $out[] = '';
                 }
-                $out[] = '# fleet/idp-client (fleet:idp:configure)';
+                $out[] = '# shaferllc/fleet-idp-client (fleet:idp:configure)';
                 $commentAdded = true;
             }
             $out[] = $key.'='.$escaped;
