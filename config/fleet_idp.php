@@ -17,6 +17,10 @@ return [
 
     'url' => rtrim((string) env('FLEET_IDP_URL', ''), '/'),
 
+    /*
+     * Passport authorization client UUID from Fleet Auth. Required for accurate policy from
+     * GET /api/social-login/providers?client_id= (2FA allow/require, email sign-in, etc.).
+     */
     'client_id' => env('FLEET_IDP_CLIENT_ID', ''),
 
     'client_secret' => env('FLEET_IDP_CLIENT_SECRET', ''),
@@ -71,13 +75,34 @@ return [
     | with the plain password, then fire Registered as usual. The listener reads the
     | password from the current request (first match in password_request_keys) and
     | POSTs to Fleet Auth /api/provisioning/users. Leave url empty to use
-    | {FLEET_IDP_URL}/api/provisioning/users.
+    | {FLEET_IDP_URL}/api/provisioning/users. Forgot-password uses
+    | POST .../lookup and POST .../password-reset (same Bearer) so users stay on the satellite UI.
     |
     */
 
     'provisioning' => [
         'token' => env('FLEET_AUTH_PROVISIONING_TOKEN', ''),
         'url' => env('FLEET_AUTH_PROVISIONING_URL', ''),
+        /*
+        | Optional full URL for POST email lookup (default: {url}/lookup or
+        | {FLEET_IDP_URL}/api/provisioning/users/lookup). Same Bearer as provisioning.
+        */
+        'lookup_url' => env('FLEET_AUTH_PROVISIONING_LOOKUP_URL', ''),
+        /*
+        | Optional full URL for POST password-reset request (default: {url}/password-reset or
+        | {FLEET_IDP_URL}/api/provisioning/users/password-reset). Same Bearer as provisioning.
+        */
+        'password_reset_url' => env('FLEET_AUTH_PROVISIONING_PASSWORD_RESET_URL', ''),
+        /*
+        | Optional full URL for POST password-change (default: {url}/password-change or
+        | {FLEET_IDP_URL}/api/provisioning/users/password-change). Same Bearer as provisioning.
+        */
+        'password_change_url' => env('FLEET_AUTH_PROVISIONING_PASSWORD_CHANGE_URL', ''),
+        /*
+        | Guzzle TLS verify for provisioning HTTP calls. Set false only for local dev if
+        | Fleet Auth uses HTTPS with a certificate PHP does not trust.
+        */
+        'verify_ssl' => filter_var(env('FLEET_IDP_PROVISIONING_VERIFY_SSL', true), FILTER_VALIDATE_BOOL),
         'merge_request_key' => env('FLEET_IDP_PROVISIONING_REQUEST_KEY', '_fleet_idp_provisioning_password'),
         'password_request_keys' => array_values(array_filter(array_map('trim', explode(',', (string) env(
             'FLEET_IDP_PROVISIONING_PASSWORD_KEYS',
@@ -157,6 +182,10 @@ return [
 
         'providers_url' => env('FLEET_IDP_SOCIALITE_PROVIDERS_URL'),
 
+        /*
+         * 0 = always refetch. After changing Fleet Auth Integrations, run
+         * php artisan fleet:idp:forget-social-login-policy-cache on satellites (or cache:clear).
+         */
         'policy_cache_seconds' => max(0, (int) env('FLEET_IDP_SOCIALITE_POLICY_CACHE', 60)),
 
         'policy_timeout_seconds' => max(1, (int) env('FLEET_IDP_SOCIALITE_POLICY_TIMEOUT', 3)),
@@ -178,6 +207,228 @@ return [
         'two_factor_session_user_id_key' => env('FLEET_IDP_SOCIALITE_TWO_FACTOR_USER_KEY', 'two_factor.id'),
 
         'two_factor_session_remember_key' => env('FLEET_IDP_SOCIALITE_TWO_FACTOR_REMEMBER_KEY', 'two_factor.remember'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Email code / magic link (Fleet Auth POST /api/email-login/*)
+    |--------------------------------------------------------------------------
+    |
+    | Uses the same password-grant OAuth client id + secret. Magic links in email
+    | point at magic_return_path on this app (or magic_return_url when set).
+    |
+    */
+
+    'email_login' => [
+        'http_timeout_seconds' => max(1, (int) env('FLEET_IDP_EMAIL_LOGIN_TIMEOUT', 10)),
+
+        'magic_return_url' => env('FLEET_IDP_EMAIL_LOGIN_MAGIC_RETURN_URL'),
+
+        'magic_return_path' => env('FLEET_IDP_EMAIL_LOGIN_MAGIC_PATH', '/login/email-magic'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Email sign-in on this satellite (profile toggle + /login/email-code UI)
+    |--------------------------------------------------------------------------
+    |
+    | Fleet-linked users: send/verify via Fleet Auth APIs (password client). Local users:
+    | challenges in challenges_table + mail notifications from this package.
+    | Register the magic link route here, or set register_magic_route=false and define it
+    | in your app. Override EmailSignInSessionCompleter to customize 2FA / post-login.
+    |
+    */
+
+    'email_sign_in' => [
+        'register_magic_route' => filter_var(env('FLEET_IDP_EMAIL_SIGN_IN_REGISTER_MAGIC_ROUTE', true), FILTER_VALIDATE_BOOL),
+
+        'middleware' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+            'FLEET_IDP_EMAIL_SIGN_IN_MIDDLEWARE',
+            'web,guest'
+        ))))),
+
+        'paths' => [
+            'magic_login' => env('FLEET_IDP_EMAIL_SIGN_IN_MAGIC_PATH', 'login/email-magic'),
+        ],
+
+        'route_names' => [
+            'magic_login' => env('FLEET_IDP_EMAIL_SIGN_IN_MAGIC_ROUTE_NAME', 'login.email-magic'),
+        ],
+
+        'user_enabled_attribute' => env('FLEET_IDP_EMAIL_SIGN_IN_USER_FLAG', 'email_code_login_enabled'),
+
+        /*
+        | Optional per-delivery columns on user_model. When null, code and magic link both use
+        | user_enabled_attribute above (legacy). Set both to split profile toggles (e.g. email_login_code_enabled
+        | and email_login_magic_link_enabled).
+        */
+        'user_code_enabled_attribute' => env('FLEET_IDP_EMAIL_SIGN_IN_CODE_USER_FLAG') ?: null,
+
+        'user_magic_link_enabled_attribute' => env('FLEET_IDP_EMAIL_SIGN_IN_MAGIC_USER_FLAG') ?: null,
+
+        'challenges_table' => env('FLEET_IDP_EMAIL_SIGN_IN_CHALLENGES_TABLE', 'local_email_login_challenges'),
+
+        'load_migrations' => filter_var(env('FLEET_IDP_EMAIL_SIGN_IN_LOAD_MIGRATIONS', true), FILTER_VALIDATE_BOOL),
+
+        'local_code_ttl_minutes' => max(1, (int) env('FLEET_IDP_EMAIL_SIGN_IN_CODE_TTL', 10)),
+
+        'local_magic_link_ttl_minutes' => max(1, (int) env('FLEET_IDP_EMAIL_SIGN_IN_MAGIC_TTL', 30)),
+
+        /*
+        |--------------------------------------------------------------------------
+        | Profile: confirm email before enabling code / magic (satellite)
+        |--------------------------------------------------------------------------
+        |
+        | When users turn on one-time codes or magic links in profile, the option
+        | stays off until they open a signed link in email. Routes, user columns,
+        | and mail copy live in this package; disable here to register routes in
+        | your app instead.
+        |
+        */
+
+        'profile_confirm' => [
+            'enabled' => filter_var(env('FLEET_IDP_PROFILE_EMAIL_SIGN_IN_CONFIRM_ENABLED', true), FILTER_VALIDATE_BOOL),
+
+            'middleware' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+                'FLEET_IDP_PROFILE_EMAIL_SIGN_IN_CONFIRM_MIDDLEWARE',
+                'web'
+            ))))),
+
+            /*
+             * Rate limit for GET confirm links, e.g. "6,1". Empty string = no throttle middleware.
+             */
+            'throttle' => env('FLEET_IDP_PROFILE_EMAIL_SIGN_IN_CONFIRM_THROTTLE', '6,1'),
+
+            'token_ttl_hours' => max(1, (int) env('FLEET_IDP_PROFILE_EMAIL_SIGN_IN_CONFIRM_TTL_HOURS', 24)),
+
+            'paths' => [
+                'magic' => env('FLEET_IDP_PROFILE_CONFIRM_MAGIC_PATH', 'profile/confirm-magic-sign-in'),
+                'code' => env('FLEET_IDP_PROFILE_CONFIRM_CODE_PATH', 'profile/confirm-email-code-sign-in'),
+            ],
+
+            'route_names' => [
+                'magic' => env('FLEET_IDP_PROFILE_CONFIRM_MAGIC_ROUTE_NAME', 'profile.confirm-magic-sign-in'),
+                'code' => env('FLEET_IDP_PROFILE_CONFIRM_CODE_ROUTE_NAME', 'profile.confirm-email-code-sign-in'),
+            ],
+
+            'redirect_route_when_authenticated' => env('FLEET_IDP_PROFILE_CONFIRM_REDIRECT_AUTHED', 'profile'),
+
+            'redirect_route_when_guest' => env('FLEET_IDP_PROFILE_CONFIRM_REDIRECT_GUEST', 'login'),
+
+            /*
+             | DB columns on user_model. Changing these requires a matching migration in your app.
+             */
+            'columns' => [
+                'magic_pending_token_hash' => env(
+                    'FLEET_IDP_USER_MAGIC_PENDING_TOKEN_HASH',
+                    'magic_link_sign_in_pending_token_hash'
+                ),
+                'magic_pending_expires_at' => env(
+                    'FLEET_IDP_USER_MAGIC_PENDING_EXPIRES',
+                    'magic_link_sign_in_pending_expires_at'
+                ),
+                'code_pending_token_hash' => env(
+                    'FLEET_IDP_USER_CODE_PENDING_TOKEN_HASH',
+                    'email_code_sign_in_pending_token_hash'
+                ),
+                'code_pending_expires_at' => env(
+                    'FLEET_IDP_USER_CODE_PENDING_EXPIRES',
+                    'email_code_sign_in_pending_expires_at'
+                ),
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Account: forgot / reset / change password (package routes)
+    |--------------------------------------------------------------------------
+    |
+    | Forgot password is always served on this app: we look up fleet_idp.user_model by
+    | email. Fleet-linked users and emails found only on Fleet Auth see a confirm step,
+    | then POST forgot-password/fleet-send (route_names.forgot_fleet_send) to trigger
+    | provisioning. Otherwise Laravel’s Password broker sends a local reset link. Change password:
+    | the package route may redirect Fleet-linked users to the IdP; apps can instead call
+    | FleetIdp::attemptFleetPasswordChange (POST /api/provisioning/users/password-change) from profile UI.
+    |
+    */
+
+    'account' => [
+        'enabled' => filter_var(env('FLEET_IDP_ACCOUNT_ROUTES_ENABLED', true), FILTER_VALIDATE_BOOL),
+
+        'local_password_only' => filter_var(env('FLEET_IDP_LOCAL_PASSWORD_ONLY', false), FILTER_VALIDATE_BOOL),
+
+        'middleware' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+            'FLEET_IDP_ACCOUNT_MIDDLEWARE',
+            'web'
+        ))))),
+
+        'route_prefix' => env('FLEET_IDP_ACCOUNT_ROUTE_PREFIX', ''),
+
+        /*
+        | When true, the package uses layouts.fleet-idp-account if that view exists and
+        | layout is still the default minimal package layout (see FLEET_IDP_ACCOUNT_LAYOUT).
+        */
+        'auto_layout' => filter_var(env('FLEET_IDP_ACCOUNT_AUTO_LAYOUT', true), FILTER_VALIDATE_BOOL),
+
+        'layout' => env('FLEET_IDP_ACCOUNT_LAYOUT', 'fleet-idp::layouts.minimal'),
+
+        /*
+        | Optional app-owned Blade for forgot-password (default: package view). Set to e.g.
+        | auth.forgot-password so the satellite keeps one view that reads session keys from
+        | {@see \Fleet\IdpClient\Http\Controllers\Account\LocalForgotPasswordController}.
+        */
+        'views' => [
+            'forgot_password' => env('FLEET_IDP_ACCOUNT_VIEW_FORGOT_PASSWORD', 'fleet-idp::account.forgot-password'),
+            /*
+            | Optional app-owned Blade for reset-password (token form). Default: package view.
+            */
+            'reset_password' => env('FLEET_IDP_ACCOUNT_VIEW_RESET_PASSWORD', 'fleet-idp::account.reset-password'),
+        ],
+
+        /*
+        | Comma-separated email domains (e.g. "fleet.test,fleet-auth.test") that always show
+        | the Fleet reset confirmation step for forgot-password, even when the user is not
+        | Fleet-linked or provisioning lookup misses. Empty = disabled.
+        */
+        'likely_email_domains' => array_values(array_filter(array_map(
+            static fn (string $d): string => strtolower(trim($d)),
+            explode(',', (string) env('FLEET_IDP_LIKELY_EMAIL_DOMAINS', ''))
+        ))),
+
+        'after_reset_route' => env('FLEET_IDP_ACCOUNT_AFTER_RESET_ROUTE', 'login'),
+
+        'idp_paths' => [
+            'forgot_password' => env('FLEET_IDP_IDP_FORGOT_PASSWORD_PATH', '/forgot-password'),
+            'reset_password' => env('FLEET_IDP_IDP_RESET_PASSWORD_PATH', '/reset-password/{token}'),
+            'change_password' => env('FLEET_IDP_IDP_CHANGE_PASSWORD_PATH', '/account/password'),
+        ],
+
+        'route_names' => [
+            'forgot_request' => env('FLEET_IDP_ROUTE_PASSWORD_REQUEST', 'password.request'),
+            'forgot_store' => env('FLEET_IDP_ROUTE_PASSWORD_EMAIL', 'password.email'),
+            'forgot_fleet_send' => env('FLEET_IDP_ROUTE_PASSWORD_EMAIL_FLEET', 'password.email.fleet'),
+            'reset_show' => env('FLEET_IDP_ROUTE_PASSWORD_RESET', 'password.reset'),
+            'reset_store' => env('FLEET_IDP_ROUTE_PASSWORD_UPDATE', 'password.update'),
+            'change_show' => env('FLEET_IDP_ROUTE_ACCOUNT_PASSWORD', 'fleet-idp.account.password.edit'),
+            'change_update' => env('FLEET_IDP_ROUTE_ACCOUNT_PASSWORD_UPDATE', 'fleet-idp.account.password.update'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Satellite session policy (middleware)
+    |--------------------------------------------------------------------------
+    |
+    | Uses FleetSocialLoginPolicy (cached GET /api/social-login/providers). Register in your app
+    | bootstrap via Fleet\IdpClient\Http\FleetSatelliteWebMiddleware::register($middleware).
+    |
+    */
+
+    'satellite_middleware' => [
+        'require_two_factor_redirect_route' => env('FLEET_IDP_SATELLITE_REQUIRE_2FA_REDIRECT_ROUTE', 'profile'),
+
+        'require_two_factor_extra_exempt_route_names' => [],
     ],
 
 ];

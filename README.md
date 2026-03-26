@@ -80,6 +80,47 @@ The package registers **`GET`** OAuth **start** and **callback** routes (see `ro
 
 **Password grant** (email/password against Fleet Auth) is still a few lines in your login action: call `FleetIdpPasswordGrant::attempt()` before local `Auth::attempt()` (see Waypost’s Volt login).
 
+## Account / auth views — publish and style
+
+Forgot password, reset password, Fleet confirmation, change password, and related partials ship with a **minimal, unstyled** default so the package works out of the box. **For production satellites you should publish these views and style them** to match login, register, and your design system (inputs, buttons, alerts, marketing shell).
+
+```bash
+php artisan vendor:publish --tag=fleet-idp-views
+php artisan vendor:publish --tag=fleet-idp-lang
+```
+
+Overrides live under **`resources/views/vendor/fleet-idp/`** (prepended to the `fleet-idp` namespace). Set **`FLEET_IDP_ACCOUNT_LAYOUT`** to your existing guest/marketing layout (e.g. **`layouts.guest`**) if that layout supports Blade **`@section('content')`** alongside Livewire **`$slot`** — or publish **`fleet-idp-account-layout`** for a starter layout.
+
+**Operator guide:** [docs/wiki/Publishing-views-and-styling.md](docs/wiki/Publishing-views-and-styling.md) · [Account and password](docs/wiki/Account-and-password.md) · full wiki [docs/wiki/Home.md](docs/wiki/Home.md).
+
+**Forgot password + Fleet:** With **`FLEET_AUTH_PROVISIONING_TOKEN`** set, Fleet-linked (and Fleet-only) addresses trigger **`POST /api/provisioning/users/password-reset`** on Fleet Auth so users stay on your app for the form; the reset **email** still comes from the IdP. See [Provisioning and Fleet lookup](docs/wiki/Provisioning-and-Fleet-lookup.md).
+
+**Change password on profile:** Fleet Auth exposes **`POST /api/provisioning/users/password-change`** (same Bearer). Satellites call **`FleetIdp::attemptFleetPasswordChange(...)`** and should **`Hash::make`** the new password on the local user row after success (Waypost’s profile Volt form does this). Optional URL override: **`fleet_idp.provisioning.password_change_url`** / **`FLEET_AUTH_PROVISIONING_PASSWORD_CHANGE_URL`**.
+
+**Social-login policy (2FA, email sign-in, …):** Set **`FLEET_IDP_CLIENT_ID`** to the Passport **authorization-code** client UUID from Fleet Auth so **`GET /api/social-login/providers?client_id=…`** returns that row’s flags. Without it, Fleet Auth uses installation-wide defaults (not per-integration). After changing flags in Fleet Auth, run **`php artisan fleet:idp:forget-social-login-policy-cache`** on the satellite (or clear cache) if **`FLEET_IDP_SOCIALITE_POLICY_CACHE`** is non-zero.
+
+**Satellite session middleware:** The package ships **`Fleet\IdpClient\Http\Middleware\EnsureSatelliteEmailIsVerified`** (Fleet-controlled `verified`) and **`EnsureFleetSiteRequiresTwoFactor`** (redirect to profile when **`require_two_factor`** is on). From **`bootstrap/app.php`** call **`Fleet\IdpClient\Http\FleetSatelliteWebMiddleware::register($middleware)`** inside **`withMiddleware()`** (after your other aliases if you merge manually). Config: **`fleet_idp.satellite_middleware`** (redirect route name, extra exempt route patterns). Strings: **`lang/en/satellite.php`** (`fleet-idp::satellite.*`).
+
+## Reuse across satellites
+
+- **`FleetIdp`** (`Fleet\IdpClient\FleetIdp`) — one import for password/Fleet decisions (`passwordManagedByIdp`, `idpChangePasswordUrl`, `emailExistsOnFleet`, …) instead of multiple `Support\*` classes.
+- **Account layout** — Point **`fleet_idp.account.layout`** at **`layouts.guest`** (or equivalent) after ensuring the layout renders **`@yield('content')`** when a section is defined. Alternatively add **`layouts/fleet-idp-account.blade.php`** (`vendor:publish --tag=fleet-idp-account-layout`) or rely on **`FLEET_IDP_ACCOUNT_AUTO_LAYOUT`** when that file exists and the layout is still the package default.
+- **Profile UI** — Inline password change for Fleet-linked users via **`FleetIdp::attemptFleetPasswordChange`** (or `<x-fleet-idp::managed-password-notice />` if you prefer redirect-only); pass **`button-class`** to match your design system.
+- **Tests** — `use Fleet\IdpClient\Testing\InteractsWithFleetIdpPasswordReset` and call `configureFleetIdpWithProvisioningLookup()` + `fakeFleetProvisioningUserLookup(bool)` in Feature tests.
+
+### Email code & magic link (passwordless sign-in)
+
+The package ships **Fleet + local** email sign-in helpers so every satellite can reuse the same behavior:
+
+- **`Fleet\IdpClient\FleetEmailSignIn`** — `send($email, $delivery)`, `verifyCode($email, $code)`; Fleet-linked users hit Fleet Auth APIs; others use a local challenge table + queued mail notifications.
+- **`Fleet\IdpClient\FleetEmailSignInSession`** — completes the browser session after code or magic link (2FA hand-off + `Auth::login`). Override by binding **`Fleet\IdpClient\Contracts\EmailSignInSessionCompleter`** in your app.
+- **Magic link route** — registered by default as **`GET login/email-magic`** / **`login.email-magic`** (see **`fleet_idp.email_sign_in.*`**). Set **`FLEET_IDP_EMAIL_SIGN_IN_REGISTER_MAGIC_ROUTE=false`** if you register it yourself.
+- **Two-factor policy** — Fleet Auth’s providers JSON includes **`allow_two_factor`** (optional TOTP on the satellite) and **`require_two_factor`** (block the app until setup). **`FleetSocialLoginPolicy::allowTwoFactor()`**, **`requireTwoFactor()`**, and **`respectLocalTotpForSessions()`** mirror those flags (cached like other policy fields).
+- **Email verification policy** — The same JSON includes **`require_email_verification`**. When true, satellites should enforce verification on routes that gate on a verified email (Waypost aliases the **`verified`** middleware to do this). Use **`FleetSocialLoginPolicy::requireEmailVerification()`** in UI (e.g. profile “unverified” banner).
+- **Migrations** — optional boolean column on **`fleet_idp.user_model`** (`email_code_login_enabled` by default) and **`local_email_login_challenges`**. Loaded automatically; set **`FLEET_IDP_EMAIL_SIGN_IN_LOAD_MIGRATIONS=false`** and run **`php artisan vendor:publish --tag=fleet-idp-email-sign-in-migrations`** if you prefer app-owned migration files.
+
+Your app still owns the **guest Volt/Blade** for **`/login/email-code`** and the **profile** toggle; call the classes above from those components. Waypost is the reference implementation.
+
 ## CLI bootstrap (`fleet:idp:configure`)
 
 From **0.4.0** (Composer package **`shaferllc/fleet-idp-client`** from **0.5.0**), the package registers an Artisan command that calls Fleet Auth’s **`POST /api/cli/setup`** and merges returned credentials into your app’s **`.env`**.
@@ -145,10 +186,13 @@ If **`FLEET_IDP_URL`** is empty, policy checks are skipped (only local `services
 Config is merged from the package (`config/fleet_idp.php`). Override with `.env` or publish:
 
 ```bash
-php artisan vendor:publish --tag=fleet-idp-config
-php artisan vendor:publish --tag=fleet-idp-lang
-php artisan vendor:publish --tag=fleet-idp-views
+php artisan vendor:publish --tag=fleet-idp-config   # optional: config/fleet_idp.php in app
+php artisan vendor:publish --tag=fleet-idp-lang    # recommended: lang/vendor/fleet-idp
+php artisan vendor:publish --tag=fleet-idp-views    # recommended for production UX
+php artisan vendor:publish --tag=fleet-idp-account-layout   # optional starter layout
 ```
+
+**Treat `fleet-idp-views` as part of your auth surface area** — commit the published files and review diffs when upgrading the package. See [Publishing views and styling](docs/wiki/Publishing-views-and-styling.md).
 
 ### Core
 
@@ -209,7 +253,7 @@ php artisan vendor:publish --tag=fleet-idp-views
 <x-fleet-idp::oauth-button variant="console" />
 ```
 
-Publish **`fleet-idp-views`** to override templates under `resources/views/vendor/fleet-idp/` (prepended to the view namespace).
+Publish **`fleet-idp-views`** to override templates under `resources/views/vendor/fleet-idp/` (prepended to the view namespace). **Required for branded auth** — see [Account / auth views — publish and style](#account--auth-views--publish-and-style).
 
 ## Programmatic API
 

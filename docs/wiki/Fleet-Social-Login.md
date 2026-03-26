@@ -74,7 +74,7 @@ Client apps **cache** the policy response for a short TTL (default 60s). After t
 
 ### Composer
 
-Require **`shaferllc/fleet-idp-client`** `^0.6` (or newer). The package pulls in **Laravel Socialite**.
+Require **`shaferllc/fleet-idp-client`** `^0.9` (or newer). The package pulls in **Laravel Socialite**.
 
 ### Fleet Auth URL
 
@@ -176,3 +176,6 @@ Waypost removed its app-local `OAuthController` / `oauth-providers` component in
 
 - [shaferllc/fleet-idp-client README](https://github.com/shaferllc/fleet-idp-client/blob/main/README.md) — installation, CLI configure, Socialite summary
 - [Wiki home](Home)
+- [Publishing views and styling](Publishing-views-and-styling) — theme Socialite buttons and OAuth failure page with the rest of auth
+- [Configuration reference](Configuration-reference) — `FLEET_IDP_SOCIALITE_*` and related env
+- [Troubleshooting](Troubleshooting) — consolidated auth issues

@@ -6,6 +6,7 @@ namespace Fleet\IdpClient\Http\Controllers;
 
 use Fleet\IdpClient\FleetIdpEloquentUserProvisioner;
 use Fleet\IdpClient\FleetIdpOAuth;
+use Fleet\IdpClient\Services\FleetSocialLoginPolicy;
 use Fleet\IdpClient\InvalidRedirectUriConfig;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -134,7 +135,8 @@ class FleetIdpOAuthWebController extends Controller
 
         $user = $sync['user'];
 
-        if (method_exists($user, 'hasTwoFactorEnabled') && $user->hasTwoFactorEnabled()) {
+        if (method_exists($user, 'hasTwoFactorEnabled') && $user->hasTwoFactorEnabled()
+            && FleetSocialLoginPolicy::respectLocalTotpForSessions()) {
             $twoFactorRoute = (string) config('fleet_idp.web.eloquent.two_factor_route', 'two-factor.challenge');
             $request->session()->put([
                 'two_factor.id' => $user->getKey(),

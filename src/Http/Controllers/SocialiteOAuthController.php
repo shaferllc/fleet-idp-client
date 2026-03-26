@@ -67,7 +67,8 @@ class SocialiteOAuthController extends Controller
 
         assert($user instanceof Model);
 
-        if (method_exists($user, 'hasTwoFactorEnabled') && $user->hasTwoFactorEnabled()) {
+        if (method_exists($user, 'hasTwoFactorEnabled') && $user->hasTwoFactorEnabled()
+            && FleetSocialLoginPolicy::respectLocalTotpForSessions()) {
             $tfUserId = (string) config('fleet_idp.socialite.two_factor_session_user_id_key', 'two_factor.id');
             $tfRemember = (string) config('fleet_idp.socialite.two_factor_session_remember_key', 'two_factor.remember');
             $tfRoute = (string) config('fleet_idp.socialite.two_factor_route', 'two-factor.challenge');

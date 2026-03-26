@@ -58,6 +58,14 @@ class FleetIdpOAuth
     }
 
     /**
+     * Public base URL for this app (scheme + host), from the current request when available.
+     */
+    public static function applicationHttpRoot(): string
+    {
+        return self::implicitOAuthApplicationRoot();
+    }
+
+    /**
      * Root URL for this app when redirect_uri is not set explicitly (no FLEET_IDP_REDIRECT_URI).
      * Uses the incoming request so https://waypost.test matches Passport even if APP_URL is localhost.
      */

@@ -3,7 +3,12 @@
 namespace Fleet\IdpClient;
 
 use Fleet\IdpClient\Console\ConfigureFleetIdpCommand;
+use Fleet\IdpClient\Console\ForgetSocialLoginPolicyCacheCommand;
+use Fleet\IdpClient\Contracts\EmailSignInSessionCompleter;
 use Fleet\IdpClient\Listeners\ProvisionRegisteredUserOnFleetAuth;
+use Fleet\IdpClient\Support\DefaultEmailSignInSessionCompleter;
+use Fleet\IdpClient\View\Components\ConfirmCurrentPasswordModal;
+use Fleet\IdpClient\View\Components\ManagedPasswordNotice;
 use Fleet\IdpClient\View\Components\OAuthButton;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Blade;
@@ -16,6 +21,8 @@ class FleetIdpServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/fleet_idp.php', 'fleet_idp');
+
+        $this->app->singleton(EmailSignInSessionCompleter::class, DefaultEmailSignInSessionCompleter::class);
     }
 
     public function boot(): void
@@ -39,13 +46,25 @@ class FleetIdpServiceProvider extends ServiceProvider
          * Our class is OAuthButton; PSR-4 file names differ on case-sensitive disks, so register explicitly.
          */
         Blade::component(OAuthButton::class, 'fleet-idp::oauth-button');
+        Blade::component(ManagedPasswordNotice::class, 'fleet-idp::managed-password-notice');
+        Blade::component(ConfirmCurrentPasswordModal::class, 'fleet-idp::confirm-current-password-modal');
+
+        $this->applyOptionalSatelliteAccountLayout();
 
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
         $this->loadRoutesFrom(__DIR__.'/../routes/socialite.php');
+        $this->loadRoutesFrom(__DIR__.'/../routes/account.php');
+        $this->loadRoutesFrom(__DIR__.'/../routes/email-sign-in.php');
+        $this->loadRoutesFrom(__DIR__.'/../routes/profile-email-sign-in-confirm.php');
+
+        if (filter_var(config('fleet_idp.email_sign_in.load_migrations', true), FILTER_VALIDATE_BOOL)) {
+            $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        }
 
         if ($this->app->runningInConsole()) {
             $this->commands([
                 ConfigureFleetIdpCommand::class,
+                ForgetSocialLoginPolicyCacheCommand::class,
             ]);
             $this->publishes([
                 __DIR__.'/../config/fleet_idp.php' => config_path('fleet_idp.php'),
@@ -56,7 +75,35 @@ class FleetIdpServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../resources/views' => resource_path('views/vendor/fleet-idp'),
             ], 'fleet-idp-views');
+            $this->publishes([
+                __DIR__.'/../resources/stubs/fleet-idp-account-layout.blade.php' => resource_path('views/layouts/fleet-idp-account.blade.php'),
+            ], 'fleet-idp-account-layout');
+            $this->publishes([
+                __DIR__.'/../database/migrations' => database_path('migrations'),
+            ], 'fleet-idp-email-sign-in-migrations');
         }
+    }
+
+    /**
+     * If the app ships layouts/fleet-idp-account.blade.php, use it for package account views
+     * unless the layout was customized via env.
+     */
+    protected function applyOptionalSatelliteAccountLayout(): void
+    {
+        if (! filter_var(config('fleet_idp.account.auto_layout', true), FILTER_VALIDATE_BOOL)) {
+            return;
+        }
+
+        $minimal = 'fleet-idp::layouts.minimal';
+        if ((string) config('fleet_idp.account.layout') !== $minimal) {
+            return;
+        }
+
+        if (! $this->app->make('view')->exists('layouts.fleet-idp-account')) {
+            return;
+        }
+
+        $this->app->make('config')->set('fleet_idp.account.layout', 'layouts.fleet-idp-account');
     }
 
     /**
