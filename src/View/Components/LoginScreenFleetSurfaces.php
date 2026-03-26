@@ -6,6 +6,7 @@ namespace Fleet\IdpClient\View\Components;
 
 use Fleet\IdpClient\FleetEmailSignIn;
 use Fleet\IdpClient\FleetIdpEmailLogin;
+use Fleet\IdpClient\FleetIdpOAuth;
 use Fleet\IdpClient\Services\FleetSocialLoginPolicy;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Route;
@@ -27,13 +28,16 @@ final class LoginScreenFleetSurfaces extends Component
     ) {
         $this->guestEmailCodeRouteName = (string) config('fleet_idp.email_sign_in.guest_email_code_route_name', 'login.email-code');
 
+        $policyAllowsEmailLogin = FleetSocialLoginPolicy::emailLoginCodeAllowed()
+            || FleetSocialLoginPolicy::emailLoginMagicLinkAllowed();
+
         $this->showPasswordlessCard = Route::has($this->guestEmailCodeRouteName)
             && FleetEmailSignIn::guestFlowAvailable()
             && (
-                (FleetIdpEmailLogin::isAvailable()
-                    && (FleetSocialLoginPolicy::emailLoginCodeAllowed()
-                        || FleetSocialLoginPolicy::emailLoginMagicLinkAllowed()))
-                || FleetSocialLoginPolicy::guestEmailLoginCardWithoutIdpDelivery()
+                FleetSocialLoginPolicy::guestEmailLoginCardWithoutIdpDelivery()
+                || ($policyAllowsEmailLogin && FleetIdpEmailLogin::isAvailable())
+                || ($policyAllowsEmailLogin && FleetIdpOAuth::isConfigured())
+                || filter_var(config('fleet_idp.email_sign_in.always_show_guest_card_on_login', false), FILTER_VALIDATE_BOOL)
             );
     }
 

@@ -3,9 +3,11 @@
 namespace Fleet\IdpClient;
 
 use Fleet\IdpClient\Console\ConfigureFleetIdpCommand;
+use Fleet\IdpClient\Console\DebugSocialLoginPolicyCommand;
 use Fleet\IdpClient\Console\ForgetSocialLoginPolicyCacheCommand;
 use Fleet\IdpClient\Console\InstallFleetSatelliteCommand;
 use Fleet\IdpClient\Contracts\EmailSignInSessionCompleter;
+use Fleet\IdpClient\Http\Middleware\InjectFleetIdpDebugPanel;
 use Fleet\IdpClient\Http\Middleware\WarmFleetSocialLoginPolicy;
 use Fleet\IdpClient\Listeners\ProvisionRegisteredUserOnFleetAuth;
 use Fleet\IdpClient\Support\DefaultEmailSignInSessionCompleter;
@@ -34,6 +36,7 @@ class FleetIdpServiceProvider extends ServiceProvider
         $this->normalizeRedirectUri();
 
         $this->registerWarmSocialLoginPolicyMiddleware();
+        $this->registerInjectFleetIdpDebugPanelMiddleware();
 
         Event::listen(Registered::class, ProvisionRegisteredUserOnFleetAuth::class);
 
@@ -69,6 +72,7 @@ class FleetIdpServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 ConfigureFleetIdpCommand::class,
+                DebugSocialLoginPolicyCommand::class,
                 ForgetSocialLoginPolicyCacheCommand::class,
                 InstallFleetSatelliteCommand::class,
             ]);
@@ -152,6 +156,17 @@ class FleetIdpServiceProvider extends ServiceProvider
     {
         $this->app->booted(function (): void {
             $this->app->make(Router::class)->prependMiddlewareToGroup('web', WarmFleetSocialLoginPolicy::class);
+        });
+    }
+
+    /**
+     * Prepends {@see InjectFleetIdpDebugPanel} so it runs outermost on the web stack and mutates the
+     * final HTML response after the inner pipeline returns.
+     */
+    protected function registerInjectFleetIdpDebugPanelMiddleware(): void
+    {
+        $this->app->booted(function (): void {
+            $this->app->make(Router::class)->prependMiddlewareToGroup('web', InjectFleetIdpDebugPanel::class);
         });
     }
 }

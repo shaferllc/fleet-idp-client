@@ -189,6 +189,19 @@ return [
 
         'policy_timeout_seconds' => max(1, (int) env('FLEET_IDP_SOCIALITE_POLICY_TIMEOUT', 3)),
 
+        /*
+         * When GET /api/social-login/providers fails from this app (TLS, DNS, firewall) but
+         * Fleet OAuth credentials are set, assume Fleet login + email code/magic are allowed.
+         * On by default for APP_ENV=local; set FLEET_IDP_OPTIMISTIC_UNREACHABLE=true otherwise.
+         */
+        'optimistic_when_unreachable' => filter_var(env('FLEET_IDP_OPTIMISTIC_UNREACHABLE', false), FILTER_VALIDATE_BOOL),
+
+        /*
+         * Log policy fetches (debug level) and force the on-page Fleet IdP debug panel on.
+         * Fleet Auth can also enable the panel per Passport client (Integrations → Satellite policy debug).
+         */
+        'debug_policy_fetch' => filter_var(env('FLEET_IDP_DEBUG_SOCIAL_POLICY', false), FILTER_VALIDATE_BOOL),
+
         'null_password_for_social' => filter_var(env('FLEET_IDP_SOCIALITE_NULL_PASSWORD', true), FILTER_VALIDATE_BOOL),
 
         'user_model' => env('FLEET_IDP_SOCIALITE_USER_MODEL'),
@@ -257,6 +270,14 @@ return [
          * Override in config if your route name differs.
          */
         'guest_email_code_route_name' => 'login.email-code',
+
+        /*
+         * When true, always show the guest “email code / magic link” card on the login page
+         * (in addition to IdP-driven rules). Use if policy cannot be fetched from PHP but the
+         * browser/IdP flow works, or for local-only passwordless entry. Sending still follows
+         * Fleet APIs and per-user opt-in when wired.
+         */
+        'always_show_guest_card_on_login' => filter_var(env('FLEET_IDP_EMAIL_SIGN_IN_ALWAYS_SHOW_GUEST_CARD', false), FILTER_VALIDATE_BOOL),
 
         'user_enabled_attribute' => env('FLEET_IDP_EMAIL_SIGN_IN_USER_FLAG', 'email_code_login_enabled'),
 
