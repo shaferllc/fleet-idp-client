@@ -2,6 +2,7 @@
 
 namespace Fleet\IdpClient;
 
+use Fleet\IdpClient\Console\ConfigureFleetIdpCommand;
 use Fleet\IdpClient\Listeners\ProvisionRegisteredUserOnFleetAuth;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Blade;
@@ -35,6 +36,9 @@ class FleetIdpServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
 
         if ($this->app->runningInConsole()) {
+            $this->commands([
+                ConfigureFleetIdpCommand::class,
+            ]);
             $this->publishes([
                 __DIR__.'/../config/fleet_idp.php' => config_path('fleet_idp.php'),
             ], 'fleet-idp-config');
