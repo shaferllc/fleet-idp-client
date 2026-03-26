@@ -34,6 +34,7 @@ class FleetIdpServiceProvider extends ServiceProvider
         Blade::componentNamespace('Fleet\\IdpClient\\View\\Components', 'fleet-idp');
 
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
+        $this->loadRoutesFrom(__DIR__.'/../routes/socialite.php');
 
         if ($this->app->runningInConsole()) {
             $this->commands([

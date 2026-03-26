@@ -133,4 +133,51 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | GitHub / Google (Laravel Socialite) on this app
+    |--------------------------------------------------------------------------
+    |
+    | Registers oauth/{provider} routes and optional Blade buttons. Client id/secret
+    | stay in config/services.php (services.github, services.google). Fleet Auth
+    | exposes GET /api/social-login/providers; this package caches that response
+    | to hide buttons when the IdP disables a provider.
+    |
+    */
+
+    'socialite' => [
+        'enabled' => filter_var(env('FLEET_IDP_SOCIALITE_ENABLED', true), FILTER_VALIDATE_BOOL),
+
+        'route_prefix' => env('FLEET_IDP_SOCIALITE_ROUTE_PREFIX', 'oauth'),
+
+        'middleware' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+            'FLEET_IDP_SOCIALITE_MIDDLEWARE',
+            'web'
+        ))))),
+
+        'providers_url' => env('FLEET_IDP_SOCIALITE_PROVIDERS_URL'),
+
+        'policy_cache_seconds' => max(0, (int) env('FLEET_IDP_SOCIALITE_POLICY_CACHE', 60)),
+
+        'policy_timeout_seconds' => max(1, (int) env('FLEET_IDP_SOCIALITE_POLICY_TIMEOUT', 3)),
+
+        'policy_fail_open' => filter_var(env('FLEET_IDP_SOCIALITE_POLICY_FAIL_OPEN', true), FILTER_VALIDATE_BOOL),
+
+        'null_password_for_social' => filter_var(env('FLEET_IDP_SOCIALITE_NULL_PASSWORD', true), FILTER_VALIDATE_BOOL),
+
+        'user_model' => env('FLEET_IDP_SOCIALITE_USER_MODEL'),
+
+        'error_route' => env('FLEET_IDP_SOCIALITE_ERROR_ROUTE', 'login'),
+
+        'oauth_error_session_key' => env('FLEET_IDP_SOCIALITE_ERROR_KEY', 'oauth_error'),
+
+        'post_login_route' => env('FLEET_IDP_SOCIALITE_POST_LOGIN_ROUTE', 'dashboard'),
+
+        'two_factor_route' => env('FLEET_IDP_SOCIALITE_TWO_FACTOR_ROUTE', 'two-factor.challenge'),
+
+        'two_factor_session_user_id_key' => env('FLEET_IDP_SOCIALITE_TWO_FACTOR_USER_KEY', 'two_factor.id'),
+
+        'two_factor_session_remember_key' => env('FLEET_IDP_SOCIALITE_TWO_FACTOR_REMEMBER_KEY', 'two_factor.remember'),
+    ],
+
 ];
