@@ -2,8 +2,8 @@
 
 namespace Fleet\IdpClient;
 
-use Fleet\IdpClient\Events\UserRegisteredForFleetProvisioning;
 use Fleet\IdpClient\Listeners\ProvisionRegisteredUserOnFleetAuth;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
@@ -20,7 +20,7 @@ class FleetIdpServiceProvider extends ServiceProvider
     {
         $this->normalizeRedirectUri();
 
-        Event::listen(UserRegisteredForFleetProvisioning::class, ProvisionRegisteredUserOnFleetAuth::class);
+        Event::listen(Registered::class, ProvisionRegisteredUserOnFleetAuth::class);
 
         $this->loadTranslationsFrom(__DIR__.'/../lang', 'fleet-idp');
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'fleet-idp');

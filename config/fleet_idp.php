@@ -62,16 +62,23 @@ return [
     | Registration mirroring (optional)
     |--------------------------------------------------------------------------
     |
-    | After a local user signs up, dispatch UserRegisteredForFleetProvisioning with
-    | the plain password. When provisioning.token is set, the package POSTs to
-    | Fleet Auth /api/provisioning/users (same Bearer token as configured in Fleet
-    | Admin → Client sites). Leave url empty to use {FLEET_IDP_URL}/api/provisioning/users.
+    | Hooks into {@see \Illuminate\Auth\Events\Registered}. Before creating the user,
+    | call {@see \Fleet\IdpClient\Support\FleetProvisioningRequest::stashPasswordForRegisteredEvent}
+    | with the plain password, then fire Registered as usual. The listener reads the
+    | password from the current request (first match in password_request_keys) and
+    | POSTs to Fleet Auth /api/provisioning/users. Leave url empty to use
+    | {FLEET_IDP_URL}/api/provisioning/users.
     |
     */
 
     'provisioning' => [
         'token' => env('FLEET_AUTH_PROVISIONING_TOKEN', ''),
         'url' => env('FLEET_AUTH_PROVISIONING_URL', ''),
+        'merge_request_key' => env('FLEET_IDP_PROVISIONING_REQUEST_KEY', '_fleet_idp_provisioning_password'),
+        'password_request_keys' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+            'FLEET_IDP_PROVISIONING_PASSWORD_KEYS',
+            '_fleet_idp_provisioning_password,password,form.password'
+        ))))),
     ],
 
     /*
