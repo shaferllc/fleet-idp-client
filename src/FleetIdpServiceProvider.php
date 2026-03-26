@@ -4,6 +4,7 @@ namespace Fleet\IdpClient;
 
 use Fleet\IdpClient\Console\ConfigureFleetIdpCommand;
 use Fleet\IdpClient\Listeners\ProvisionRegisteredUserOnFleetAuth;
+use Fleet\IdpClient\View\Components\OAuthButton;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
@@ -32,6 +33,12 @@ class FleetIdpServiceProvider extends ServiceProvider
         }
 
         Blade::componentNamespace('Fleet\\IdpClient\\View\\Components', 'fleet-idp');
+
+        /*
+         * Laravel maps tag oauth-button to class …\OauthButton (see ComponentTagCompiler::formatClassName).
+         * Our class is OAuthButton; PSR-4 file names differ on case-sensitive disks, so register explicitly.
+         */
+        Blade::component(OAuthButton::class, 'fleet-idp::oauth-button');
 
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
         $this->loadRoutesFrom(__DIR__.'/../routes/socialite.php');
